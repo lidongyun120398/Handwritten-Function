@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+
+    <script>
+        //组合函数
+        function composeFn(fns) {
+            const length = fns.length
+            if (length <= 0) return
+            for (let i = 0; i < length; i++) {
+                if (typeof fns[i] === 'function') {
+                    throw new Error(`index positon ${i} must be function`)
+                }
+            }
+
+            return function(...args) {
+                let result = fns[0].apply(this, args)
+                for (let i = 1; i < length; i++) {
+                    fns[i].apply(this, [result])
+                }
+            }
+        }
+    </script>
+
+</body>
+
+</html>

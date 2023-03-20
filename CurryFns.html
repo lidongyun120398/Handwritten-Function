@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        //自动柯里化函数
+        function Currying(fn) {
+            function curryFn(...args) {
+                if (args.length >= fn.length) {
+                    fn.apply(this, args)
+                } else {
+                    return function newFn(...newArgs) {
+                        return curryFn.apply(this, args.concat(newArgs))
+                    }
+                }
+            }
+
+            return curryFn
+        }
+    </script>
+</body>
+
+</html>
