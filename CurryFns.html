@@ -10,20 +10,38 @@
 
 <body>
     <script>
+        function foo(x, y, z) {
+            console.log(x + y + z)
+        }
+
         //自动柯里化函数
         function Currying(fn) {
+            //传入需要转换的函数，返回该函数的柯里化函数
             function curryFn(...args) {
+                //两类操作
+                //第一类继续返回一个函数，继续接收参数
+                //第二类直接执行fn函数
+                //args代表全部的剩余参数，fn.length代表fn参数的长度，fn.length为3，三次传入的args分别为10,10、20,10、20、30
                 if (args.length >= fn.length) {
+                    //第二类
                     fn.apply(this, args)
                 } else {
                     return function newFn(...newArgs) {
+                        //因为这里拼接所以三次传入的args才是那种
                         return curryFn.apply(this, args.concat(newArgs))
                     }
                 }
             }
-
+            //绑定this的原因：如果外面在调用柯里化函数时需要绑定this，内部不绑定的话外面的绑定无效的
             return curryFn
         }
+
+        //第一次运行的时候fooCurry相当于curryFn，当参数10传入后执行了第一次的curryFn，此时fooCurry(10)相当于newFn
+        //然后传入20时，20就是newArgs，将10和20拼接，传入curryFn中，再次运行，args.length是2仍然执行第一类，再次返回newFn，传入30
+        //curryFn被调用，此时的参数为10、20、30，等于fn.length,执行第二类完成柯里化
+
+        const fooCurry = Currying(foo)
+        fooCurry.apply('abc', [10])(20)(30)
     </script>
 </body>
 

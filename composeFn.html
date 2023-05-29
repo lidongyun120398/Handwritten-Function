@@ -11,23 +11,43 @@
 <body>
 
     <script>
+        let num = 100
+
+        function double(num) {
+            return num * 2
+        }
+
+        function pow(num) {
+            return num ** 2
+        }
+
+
         //组合函数
         function composeFn(fns) {
+            //边界判断
             const length = fns.length
+                //判断传入参数的数量，没传入直接退出
             if (length <= 0) return
+                //判断传入的参数是否为函数
             for (let i = 0; i < length; i++) {
                 if (typeof fns[i] === 'function') {
                     throw new Error(`index positon ${i} must be function`)
                 }
             }
-
+            // 接收到函数和参数
+            // 定义result，为第一个函数接受参数后的结果
+            // 循环剩下的函数，把上一个函数的结果一次传入
             return function(...args) {
                 let result = fns[0].apply(this, args)
                 for (let i = 1; i < length; i++) {
-                    fns[i].apply(this, [result])
+                    result = fns[i].apply(this, [result])
                 }
+                return result
             }
         }
+
+        const newFn = composeFn(double, pow)
+        newFn(100)
     </script>
 
 </body>

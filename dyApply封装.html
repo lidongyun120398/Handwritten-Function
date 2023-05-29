@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+
+    <script>
+        function foo(name, age) {
+            console.log(this, name, age)
+        }
+
+        //把自己写得dyApply添加到函数的原型链上
+        Function.prototype.hyApply = function(thisArg, otherArgs) {
+            //this调用的函数对象
+            //thisArg 传入的第一个参数，要绑定的this
+
+            // // 1.边界判断：获取thisArg，并确保其是一个对象
+            // thisArg = (thisArg === undefined || thisArg === null) ? window : Object(thisArg)
+            //     // 2.在thisArg上绑定一个fn属性,将this赋值给fn
+            // Object.definePropertiy(thisArg, 'fn', {
+            //         configurable: true,
+            //         value: this
+            //     })
+            //     //3.调用thisArg.fn(),将调用函数的this绑定到thisArg上
+            // thisArg.fn(...otherArgs)
+            //     //4.删除fn属性
+            // delete thisArg.fn
+
+
+            //封装独立函数的调用方式
+            execFn(thisArg, otherArgs, this)
+
+            //封装在函数原型链上的调用方式
+            // this.dyExec(thisArg, otherArgs)
+        }
+
+        foo.dyApply({
+            name: 'ldy'
+        }, ['james', 25])
+
+        Function.prototype.dyCall = function(thisArg, ...otherArgs) {
+            // // 1.边界判断：获取thisArg，并确保其是一个对象
+            // thisArg = (thisArg === undefined || thisArg === null) ? window : Object(thisArg)
+            //     // 2.在thisArg上绑定一个fn属性,将this赋值给fn
+            // Object.definePropertiy(thisArg, 'fn', {
+            //         configurable: true,
+            //         value: this
+            //     })
+            //     //3.调用thisArg.fn(),将调用函数的this绑定到thisArg上
+            // thisArg.fn(...otherArgs)
+            //     //4.删除fn属性
+            // delete thisArg.fn
+
+            //封装独立函数的调用方式
+            execFn(thisArg, otherArgs, this)
+
+            //封装在函数原型链上的调用方式
+            // this.dyExec(thisArg, otherArgs)
+        }
+
+        foo.dyCall({
+            name: 'ldy'
+        }, 'james', 25)
+
+
+        function execFn(thisArg, otherArgs, fn) {
+            // 1.边界判断：获取thisArg，并确保其是一个对象
+            thisArg = (thisArg === undefined || thisArg === null) ? window : Object(thisArg)
+                // 2.在thisArg上绑定一个fn属性,将this赋值给fn
+            Object.definePropertiy(thisArg, 'fn', {
+                    configurable: true,
+                    value: fn
+                })
+                //3.调用thisArg.fn(),将调用函数的this绑定到thisArg上
+            thisArg.fn(...otherArgs)
+                //4.删除fn属性
+            delete thisArg.fn
+        }
+
+
+        Function.prototype.dyExec = function() {
+            thisArg = (thisArg === undefined || thisArg === null) ? window : Object(thisArg)
+            Object.definePropertiy(thisArg, 'fn', {
+                    configurable: true,
+                    value: this
+                })
+                //value的值是this是因为在dyCall和dyApply中是通过this调用的
+                //即当前函数的this会绑定为调用时用的this，即为dyCall和dyApply的this
+            thisArg.fn(...otherArgs)
+            delete thisArg.fn
+        }
+    </script>
+</body>
+
+</html>
