@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+
+
+    <script>
+        function foo(name, age, height) {
+            console.log(this, name, age, height)
+        }
+
+        //bind与call和apply不同，bind会返回一个函数
+        //相当于封装了一个闭包
+        Function.prototype.dyBind = function(thisArg, ...otherArgs) {
+            thisArg = (thisArg === undefined || thisArg === null) ? window : Object(thisArg)
+            Object.defineProperty(thisArg, 'fn', {
+                enumerable: false,
+                configurable: true,
+                writable: false,
+                value: this
+            })
+            return (...newArgs) => {
+                const allArgs = [...otherArgs, ...newArgs]
+                thisArg.fn(...allArgs)
+            }
+        }
+
+
+        const newFoo = foo.dyBind({
+            name: 'ldy'
+        }, 'james', 18)
+        newFoo(1.88)
+    </script>
+
+</body>
+
+</html>
