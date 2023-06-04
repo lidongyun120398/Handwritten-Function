@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <button>按钮</button>
+    <input type="text">
+
+    <script>
+        function dydebounce(fn, delay) {
+            let timer = null
+                // const _debounce = () => {
+                //     if (timer) clearTimeout(timer)
+                //     timer = setTimeout(() => {
+                //         //函数执行时采用独立函数调用，所以默认this指向的是window
+                //         fn()
+                //         timer = null
+                //     }, delay)
+                // }
+                //因为下面对dydebounce返回的函数绑定了事件，所以返回的函数_debounce的this是绑定在inputEl上的
+                //但是因为箭头函数的this是dydebounce的this,而dydebounce是独立函数调用this是window
+                //所以这里不采用箭头函数
+                //因为oninput相当于绑定的是_debounce所以产生的event是相当于传给_debounce的
+                // const _debounce = function(event) {
+            const _debounce = function(...args) {
+                //考虑到可能不止一个参数所以采用arguements
+                if (timer) clearTimeout(timer)
+                timer = setTimeout(() => {
+                    fn.apply(this, args)
+                    timer = null
+                }, delay)
+            }
+            return _debounce
+        }
+    </script>
+    <script>
+        const inputEl = document.querySelector("input")
+
+        let counter = 1
+        inputEl.oninput = dydebounce(function(event) {
+            console.log(`发送网络请求${counter++}:`, this, event)
+        }, 1000)
+    </script>
+
+</body>
+
+</html>

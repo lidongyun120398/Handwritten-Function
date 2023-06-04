@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <button>按钮</button>
+    <input type="text">
+    <button id="cancel">取消</button>
+
+    <script>
+        function dydebounce(fn, delay, immediate = false) {
+            let timer = null
+            let isInvoke = false
+
+            const _debounce = function(...args) {
+                return new Promise((resolve, reject) => {
+                    try {
+                        if (timer) clearTimeout(timer)
+
+                        let res = undefined
+                        if (immediate && !isInvoke) {
+                            res = fn.apply(this, args)
+                            resolve(res)
+                            isInvoke = true
+                            return
+                        }
+
+                        timer = setTimeout(() => {
+                            res = fn.apply(this, args)
+                            resolve(res)
+                            timer = null
+                            isInvoke = false
+                        }, delay)
+                    } catch (error) {
+                        reject(error)
+                    }
+                })
+            }
+
+            _debounce.cancel = function() {
+                if (timer) clearTimeout(timer)
+                timer = null
+                isInvoke = false
+            }
+
+            return _debounce
+        }
+    </script>
+    <script>
+        // const inputEl = document.querySelector("input")
+        // const cancelBtn = document.querySelector('.cancel')
+
+        // let counter = 1
+        //     //生成个对象方便后面使用cancel功能
+        // const debounceFn = dydebounce(function(event) {
+        //     console.log(`发送网络请求${counter++}:`, this, event)
+        // }, 1000)
+
+        // inputEl.oninput = debounceFn
+
+        // cancel.onclick = function() {
+        //     debounceFn.cancel()
+        // }
+
+        const myDebounceFn = dydebounce(function(name, age, height) {
+            console.log('-----------------')
+
+            return '哈哈哈哈'
+        }, 1000)
+
+        //因为防抖调用三次也只能返回一次
+        // myDebounceFn("ldy", 18, 1.88)
+        // myDebounceFn("ldy", 18, 1.88)
+        // myDebounceFn("ldy", 18, 1.88)
+
+        //首先myDebounceFn的参数会被传递到_debounce的args中，args被apply绑定回fn中，fn就是function（name,age,height）
+
+        //myDebounce因为有延时所以不是立即执行的也不是同步的
+        myDebounceFn('ldy', 18, 1.88).then((res) => console.log(res, 'promise'))
+    </script>
+
+</body>
+
+</html>

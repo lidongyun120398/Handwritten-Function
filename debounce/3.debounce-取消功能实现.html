@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <button>按钮</button>
+    <input type="text">
+    <button id="cancel">取消</button>
+
+    <script>
+        //点击完函数以后，跳转到其他页面或者手动取消后，事件就不需要再次触发了
+        function dydebounce(fn, delay) {
+            let timer = null
+            const _debounce = function(...args) {
+                if (timer) clearTimeout(timer)
+                timer = setTimeout(() => {
+                    fn.apply(this, args)
+                    timer = null
+                }, delay)
+            }
+
+            //给_debounce绑定一个取消的函数
+            _debounce.cancel = function() {
+                if (timer) clearTimeout(timer)
+            }
+
+            return _debounce
+        }
+    </script>
+    <script>
+        const inputEl = document.querySelector("input")
+        const cancelBtn = document.querySelector('.cancel')
+
+        let counter = 1
+            //生成个对象方便后面使用cancel功能
+        const debounceFn = dydebounce(function(event) {
+            console.log(`发送网络请求${counter++}:`, this, event)
+        }, 1000)
+
+        inputEl.oninput = debounceFn
+
+        cancel.onclick = function() {
+            debounceFn.cancel()
+        }
+    </script>
+
+</body>
+
+</html>

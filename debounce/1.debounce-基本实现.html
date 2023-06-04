@@ -18,13 +18,16 @@
         // 3.内部实现
         function dydebounce(fn, delay) {
             //给定时器一个标记，后续判断有没有定时器
-            const timer = null
+            let timer = null
                 //_开发规范中一般表示私有变量
             const _debounce = () => {
+                // 如果多次触发，则取消上一次的事件
                 if (timer) clearTimeout(timer)
                     //延迟一段时间之后触发原函数
                 timer = setTimeout(() => {
                     fn()
+                        //触发后全部清零
+                    timer = null
                 }, delay)
             }
             return _debounce

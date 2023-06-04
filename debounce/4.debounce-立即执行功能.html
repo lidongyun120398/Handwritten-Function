@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <button>按钮</button>
+    <input type="text">
+    <button id="cancel">取消</button>
+
+    <script>
+        //传入immediate来判断是否立即执行
+        // 原则：一个函数用来做一件事情，一个变量只记录一种状态
+        //immediate只能用来记录是否进行立即执行，但是如果后面赋值为false，那就用来记录有没有执行过了
+        function dydebounce(fn, delay, immediate = false) {
+            let timer = null
+                //记录是否被调用过
+            let isInvoke = false
+
+            const _debounce = function(...args) {
+                    if (timer) clearTimeout(timer)
+
+                    // 如果immediate为true时，第一次执行是不需要延时的
+                    if (immediate && !isInvoke) {
+                        fn.apply(this, args)
+                        isInvoke = true
+                            // immediate = false
+                            //因为immediate是传进来的参数最好不要更改，更改后找不到最开始传入时候的值
+                        return
+                    }
+
+                    timer = setTimeout(() => {
+                        fn.apply(this, args)
+                            //需要防抖的函数执行完了之后所有东西重置回初始状态
+                        timer = null
+                        isInvoke = false
+
+                    }, delay)
+                }
+                //取消函数执行功能
+            _debounce.cancel = function() {
+                if (timer) clearTimeout(timer)
+                    //取消也需要重置
+                timer = null
+                isInvoke = false
+            }
+
+            return _debounce
+        }
+    </script>
+    <script>
+        const inputEl = document.querySelector("input")
+        const cancelBtn = document.querySelector('.cancel')
+
+        let counter = 1
+            //生成个对象方便后面使用cancel功能
+        const debounceFn = dydebounce(function(event) {
+            console.log(`发送网络请求${counter++}:`, this, event)
+        }, 1000)
+
+        inputEl.oninput = debounceFn
+
+        cancel.onclick = function() {
+            debounceFn.cancel()
+        }
+    </script>
+
+</body>
+
+</html>
