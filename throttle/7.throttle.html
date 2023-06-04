@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <input type="text">
+    <button class="cancel">取消</button>
+
+    <script src="./throttle.js"></script>
+
+    <script>
+        const inputEl = document.querySelector('input')
+        const cancelBtn = document.querySelector('.cancel')
+
+        let counter = 1
+        const throttleFn = dythrottle(function(event) {
+            console.log(`发送网络请求${counter++}:`, this, event)
+            return '哈哈哈哈'
+        }, 1000)
+        inputEl.oninput = throttleFn
+
+        cancelBtn.onclick = function() {
+            throttleFn.cancel()
+        }
+
+        // throttleFn('aaa').then(res => console.log(res))
+    </script>
+</body>
+
+</html>

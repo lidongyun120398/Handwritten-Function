@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <input type="text">
+
+    <script>
+        //leading控制是否立即执行，trailing控制尾部执行是否进行
+        function dythrottle(fn, interval, {
+            leading = true,
+            trailing = true
+        } = {}) {
+            let startTime = 0
+            let timer = null
+
+            const _throttle = function(...args) {
+                const nowTime = new Date().getTime()
+
+                //对立即执行进行控制
+                if (!leading && startTime === 0) {
+                    startTime = nowTime
+                }
+
+                const waitTime = interval - (nowTime - startTime)
+                if (waitTime <= 0) {
+                    if (timer) clearTimeout(timer)
+                    fn.apply(this, args)
+                    startTime = nowTime
+                    timer = null
+                    return
+                }
+
+                //尾部执行
+                if (trailing && !timer) {
+                    timer = setTimeout(() => {
+                        fn.apply(this, args)
+                        startTime = new Date().getTime()
+                        timer = null
+                    }, waitTime)
+                }
+
+            }
+
+            return _throttle
+        }
+    </script>
+    <script>
+        const inputEl = document.querySelector('input')
+
+        let counter = 1
+        inputEl.oninput = dythrottle(function(event) {
+            console.log(`发送网络请求${counter++}:`, this, event)
+        }, 1000)
+    </script>
+</body>
+
+</html>
