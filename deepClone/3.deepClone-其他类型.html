@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script src="./js/is_object.js"></script>
+    <script>
+        function deepClone(originValue) {
+            // Symbol类型创建一个新的symbol：值为symbol
+            if (typeof originValue === 'symbol') {
+                return Symbol(originValue.description)
+            }
+
+            if (!isObject(originValue)) {
+                return originValue
+            }
+            //判断是否为set类型
+            if (originValue instanceof Set) {
+                const newSet = new Set()
+                for (const setItem of originValue) {
+                    newSet.add(deepClone(setItem))
+                }
+                return newSet
+            }
+            //如果是函数类型则不需要深拷贝
+            if (typeof originValue === 'function') {
+                return originValue
+            }
+
+            const newObj = Array.isArray(originValue) ? [] : {}
+            for (const key in originValue) {
+                newObj[key] = deepClone(originValue[key])
+            }
+
+            //单独遍历所有的symbol：键为symbol
+            const symbolKeys = Object.getOwnPropertySymbols(originValue)
+            for (const symbolKey of symbolKeys) {
+                newObj[Symbol(symbolKey.description)] = deepClone(originValue[symbolKey])
+            }
+            return newObj
+        }
+
+        const set = new Set(['abc', 'bcd', 'cba'])
+        const s1 = Symbol('s1')
+        const s2 = Symbol('s2')
+        const info = {
+            name: "ldy",
+            age: 18,
+            friend: {
+                name: 'kobe',
+                address: {
+                    name: "洛杉矶",
+                    detail: "斯台普斯中心"
+                }
+            },
+
+            //特殊类型Set
+            set: set,
+
+            //特殊类型function
+            running: function() {
+                console.log("running")
+            },
+
+            //值为symbol
+            symbolKey: Symbol('abc'),
+
+            //key为symbol
+            [s1]: 'aaaa',
+            [s2]: 'bbbb'
+        }
+
+        const newObj = deepClone(info)
+        console.log(newObj)
+    </script>
+
+</body>
+
+</html>

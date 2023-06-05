@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script src="./js/is_object.js"></script>
+    <script>
+        function deepClone(originValue) {
+            //如果是原始类型，直接返回
+            if (!isObject(originValue)) {
+                return originValue
+            }
+
+            //如果是对象类型，创建对象
+            //创建一个新对象作为深拷贝之后的对象返回
+            const newObj = {}
+            for (const key in originValue) {
+                //递归调用，判断其中属性是对象还是原始类型
+                newObj[key] = deepClone(originValue[key])
+            }
+            return newObj
+        }
+
+
+        const info = {
+            name: "ldy",
+            age: 18,
+            friend: {
+                name: 'kobe',
+                address: {
+                    name: "洛杉矶",
+                    detail: "斯台普斯中心"
+                }
+            }
+        }
+
+        const newObj = deepClone(info)
+        console.log(newObj)
+    </script>
+
+</body>
+
+</html>

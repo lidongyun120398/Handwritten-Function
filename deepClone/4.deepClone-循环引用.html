@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script src="./js/is_object.js"></script>
+    <script>
+        function deepClone(originValue, map = new WeakMap()) {
+            if (typeof originValue === 'symbol') {
+                return Symbol(originValue.description)
+            }
+
+            if (!isObject(originValue)) {
+                return originValue
+            }
+
+            if (originValue instanceof Set) {
+                const newSet = new Set()
+                for (const setItem of originValue) {
+                    newSet.add(deepClone(setItem), map)
+                }
+                return newSet
+            }
+
+            if (typeof originValue === 'function') {
+                return originValue
+            }
+
+            if (map.get(originValue)) {
+                return map.get(originValue)
+            }
+            const newObj = Array.isArray(originValue) ? [] : {}
+            map.set(originValue, newObj)
+            for (const key in originValue) {
+                // 将现在的map传入，保证递归用的始终是一个map
+                newObj[key] = deepClone(originValue[key], map)
+            }
+
+            const symbolKeys = Object.getOwnPropertySymbols(originValue)
+            for (const symbolKey of symbolKeys) {
+                newObj[Symbol(symbolKey.description)] = deepClone(originValue[symbolKey], map)
+            }
+            return newObj
+        }
+
+        const set = new Set(['abc', 'bcd', 'cba'])
+        const s1 = Symbol('s1')
+        const s2 = Symbol('s2')
+        const info = {
+                name: "ldy",
+                age: 18,
+                friend: {
+                    name: 'kobe',
+                    address: {
+                        name: "洛杉矶",
+                        detail: "斯台普斯中心",
+                        address: {
+                            name: "123"
+                        }
+                    }
+                },
+
+                //特殊类型Set
+                set: set,
+
+                //特殊类型function
+                running: function() {
+                    console.log("running")
+                },
+
+                //值为symbol
+                symbolKey: Symbol('abc'),
+
+                //key为symbol
+                [s1]: 'aaaa',
+                [s2]: 'bbbb',
+
+                //循环引用
+                // self: info
+            }
+            //循环引用
+        info.self = info
+
+        const newObj = deepClone(info)
+        console.log(newObj)
+    </script>
+
+</body>
+
+</html>

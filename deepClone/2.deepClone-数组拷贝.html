@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script src="./js/is_object.js"></script>
+    <script>
+        function deepClone(originValue) {
+            if (!isObject(originValue)) {
+                return originValue
+            }
+            //通过Array.isArray来判断是创建新的对象还是新的数组
+            const newObj = Array.isArray(originValue) ? [] : {}
+            for (const key in originValue) {
+                newObj[key] = deepClone(originValue[key])
+            }
+            return newObj
+        }
+
+
+        const info = {
+            name: "ldy",
+            age: 18,
+            friend: {
+                name: 'kobe',
+                address: {
+                    name: "洛杉矶",
+                    detail: "斯台普斯中心"
+                }
+            }
+        }
+
+        const newObj = deepClone(info)
+        console.log(newObj)
+    </script>
+
+</body>
+
+</html>
