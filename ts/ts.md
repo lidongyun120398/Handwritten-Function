@@ -95,3 +95,254 @@ const enum Items {
 const fooValue = Items.Foo; // 0
 ```
 对于常量枚举，你只能**通过枚举成员访问枚举值**（而不能通过值访问成员）。同时，在编译产物中并不会存在一个额外的辅助对象（如上面的 Items 对象），对枚举成员的访问会被**直接内联替换为枚举的值**
+
+#### 函数
+函数的类型就是描述了**函数入参类型**与**函数返回值类型**
++ 函数声明方式定义
+```js
+function foo(name:string):number{
+  return name.length
+}
+```
++ 函数表达式方式定义
+```js
+//函数表达式
+const foo = function(name:string):number{
+  return name.length
+}
+
+//同时函数表达式的也可以写成这样,但是这样可读性太差了，不推荐
+const foo:(name:string) => number = function(name){
+  return name.length
+}
+```
+
+同时也可以使用类型别名或者interface的方式来定义
+```js
+type Foo = (name:string) => number
+
+const foo:Foo = function(name){
+  return name.length
+}
+
+interface FuncFooStruct {
+  (name: string): number
+}
+```
+
+#### 可选参数
+与数组一样，可选参数使用？来表示
+```js
+function foo(name:string,age?:number){}
+
+//给age一个默认值
+function foo(name:string,age?:number = 18){}
+
+//在这种情况下，就不再需要？，因为不传也有默认值所以可以写成以下的形式
+//并且这里如果是原始类型也可以不写类型，因为会根据默认值推导
+function foo(name:string,age:number = 18){}
+```
++ 可选参数必须位于必选参数的后面，函数的参数是**按顺序**进行匹配的，所以可选参数必须位于必选参数的后面
+
+#### rest参数
+rest参数实际上就是一个数组
+```js
+function foo(name: string, ...rest: any[]){}
+```
+也可以使用元组来标注
+```js
+function foo(name: string, ...rest: [number,string])
+
+foo('ldy',18,'male')
+```
+
+#### 函数签名重载
+```js
+function foo(tmp: number,flag: boolean) : number | string {
+  if(flag){
+    return String(tmp)
+  }
+  return tmp
+}
+```
+上面的函数会根据flag的值来判断是返回number类型还是string类型，但是在当前类型的定义中，完全看不到这点，我们只知道返回了一个number|string的联合类型，所以这里需要使用到**函数签名重载**
+```js
+function foo(tmp: number, flag: true) : string;
+function foo(tmp: number, flag?: false) : number;
+function foo(tmp: number, flag?: boolean) : number | string {
+  if(flag){
+    return String(tmp)
+  }
+  return tmp
+}
+
+const rest1 = foo(599);
+const rest2 = foo(599, true);
+const rest3 = foo(599, false);
+```
+这里的三个 __function foo__ 有不同的意义
++ __function func(foo: number, bar: true)__: string，重载签名一，传入 bar 的值为 true 时，函数返回值为 string 类型。
+
++ __function func(foo: number, bar?: false)__: number，重载签名二，不传入 bar，或传入 bar 的值为 false 时，函数返回值为 number 类型。
+
++ __function func(foo: number, bar?: boolean)__: string | number，函数的实现签名，会包含重载签名的所有可能情况。
+
+这里有一个需要注意的地方，拥有多个重载声明的函数在被调用时，是按照重载的声明顺序往下查找的。因此在第一个重载声明中，为了与逻辑中保持一致，即在 bar 为 true 时返回 string 类型，这里我们需要将第一个重载声明的 bar 声明为必选的字面量类型。
+
+#### 异步函数、Generator函数等类型定名
+```js
+//异步
+async function asyncFunc(): Promise<void> {}
+//Generator函数
+function* genFunc(): Iterable<void> {}
+//异步Generator函数
+async function* asyncGenFunc(): AsyncIterable<void> {}
+```
+
+### Class
+
+#### 类与类成员的类型签名
+Class的主要构造只有**构造函数**、**属性**、**方法**和**访问符**
+
+属性的类型标注类似于变量，而构造函数、方法、存取器的类型编标注类似于函数
+```js
+class Foo{
+  prop:string
+
+  constructor(inputProp: string) {
+    this.prop = inputProp
+  }
+
+
+  print(addon: string): void {
+    console.log(`${this.prop} and ${addon}`)
+  }
+
+  get propA(): string {
+    return `${this.prop} + A`
+  }
+
+//set方法不允许对返回值标注
+  set propA(value: string){
+    this.prop = `${value} + A`
+  }
+}
+```
+
+#### 修饰符
++ public: 默认修饰符，可以省略,此类成员在类、类的实例、子类中都能被访问
++ private: 私有属性，不能在声明它的类的外部访问,此类成员仅能在类的内部被访问
++ protected: 受保护的属性，不能在声明它的类的外部访问，但是可以在子类中访问,此类成员仅能在类与子类中被访问，你可以将类和类的实例当成两种概念，即一旦实例化完毕（出厂零件），那就和类（工厂）没关系了，即不允许再访问受保护的成员。
++ readonly: 只读属性，不能被修改
+```js
+class Foo{
+  private prop: string
+
+  constructor(inputProp: string) {
+    this.prop = inputProp
+  }
+
+  protected print(addon: string): void {
+    console.log(`${this.prop} and ${addon}`)
+  }
+
+  public get propA(): string {
+    return `${this.prop} + A`
+  }
+
+  public set propA(value: string){
+    this.prop = `${value} + A`
+  }
+}
+```
+
+为了简单一点，我们还可以直接**在构造函数中对参数应用访问性修饰符**
+```js
+class Foo{
+  constructor(private arg1: string, private arg2: string){}
+}
+
+const foo = new Foo('ldy','male')
+```
+
+#### 静态成员
+通过static来定义一个静态成员
+```js
+class Foo{
+  static prop: string = 'ldy'
+}
+```
+不同于实例成员，在类的内部静态成员无法通过 this 来访问，需要通过 **Foo.prop** 这种形式进行访问。
+
+*静态成员直接被挂载在函数体上，而实例成员挂载在原型上，这就是二者的最重要差异：静态成员不会被实例继承，它始终只属于当前定义的这个类（以及其子类）。而原型对象上的实例成员则会沿着原型链进行传递，也就是能够被继承*
+
+
+#### 继承
+```js
+class Parent {
+  print(){
+    console.log('parent')
+  }
+}
+
+class Children extends Parent{
+  print(){
+    super.print()
+    console.log('children')
+  }
+}
+
+const children = new Children()
+children.print()
+```
+与正常的js中继承方法一致,通过super可以调用父类方法
+
+同时在子类中想要确保覆盖父类中的方法，提供了** override **关键字
+```js
+class Parent {
+  printA(){
+    console.log('parent')
+  }
+}
+
+class Children extends Parent{
+  override print(){}
+}
+```
++ 这里的这种写法是会报错的，因为在基类中没有print这个方法，但是在派生类中打算覆盖
++ 通过这一关键字我们就能确保首先这个方法在基类中存在，同时标识这个方法在派生类中被覆盖了
+  
+#### 抽象类
+抽象类是专门用来被继承的类，它不能被实例化。
+```js
+abstract class Parent{
+  abstract absProp: string
+  abstract absMethod(name: string): void
+}
+//要把属性方法全都实现
+class Foo implements Parent{
+  absProp: string = 'ldy'
+
+  absMethod(name: string){
+    console.log(name)
+  }
+}
+```
++ 在 TypeScript 中无法声明静态的抽象成员
+  
+抽象类的本质就是为了描述类的结构，同时interface不仅可以声明函数结构，也可以声明类的结构
+```js
+interface Parent{
+  absProp: string
+  absMethod(name: string): void
+}
+
+class Foo implements Parent{
+  absProp: string = 'ldy'
+
+  absMethod(name: string){
+    console.log(name)
+  }
+}
+```
+在这里抽象类和接口的作用是一样的，都是描述这个类的结构
