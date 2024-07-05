@@ -346,3 +346,35 @@ class Foo implements Parent{
 }
 ```
 在这里抽象类和接口的作用是一样的，都是描述这个类的结构
+
+#### any
+```js
+fucntion foo(message:any,...options:any[]){}
+```
+在上面的代码中，使用了any类型表示可以接受任意类型的值
+除了显示标记一个变量或者参数的类型为any，某些情况下也会被隐式的推导为any，如
+```js
+let foo;
+
+function func(foo,bar){}
+```
+同时any类型几乎无所不能，它可以在**声明之后再次接收任意类型的值**，也可以**赋值给其他任意类型的变量**
+```js
+let anyVar: any = 'ldy'
+
+anyVar = 123
+anyVar = true
+anyVar = () => {}
+
+const var1: string = anyVar
+const var2: number = anyVar
+const var3: boolean = anyVar
+const var4: () => void = anyVar
+```
+这样写的话就可以认为类型推导和检查时完全禁用的，所以在正常开发中不推荐使用any
++ 如果是类型不兼容报错导致你使用 any，考虑用类型断言替代，我们下面就会开始介绍类型断言的作用
++ 如果是类型太复杂导致你不想全部声明而使用 any，考虑将这一处的类型去断言为你需要的最简类型。如你需要调用 foo.bar.baz()，就可以先将 foo 断言为一个具有 bar 方法的类型
++ 如果你是想表达一个未知类型，更合理的方式是使用 unknown
+
+#### unknown
+unknown代表一个暂时未知，但是之后会赋值的类型
