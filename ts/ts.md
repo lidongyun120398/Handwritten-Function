@@ -675,3 +675,242 @@ interface StringifiedFoo {
   prop4: string;
 }
 ```
+
+#### 类型查询操作符
+在js中的typeof操作符可以检查类型，会返回string，number，object，undefined等，除此之外在TypeScript中typeof会返回一个TypeScript类型
+```typescript
+const str = "linbudu";
+
+const obj = { name: "linbudu" };
+
+const nullVar = null;
+const undefinedVar = undefined;
+
+const func = (input: string) => {
+  return input.length > 10;
+}
+
+type Str = typeof str; // "linbudu"
+type Obj = typeof obj; // { name: string; }
+type Null = typeof nullVar; // null
+type Undefined = typeof undefined; // undefined
+type Func = typeof func; // (input: string) => boolean
+
+const func = (input: string) => {
+  return input.length > 10;
+}
+
+const func2: typeof func = (name: string) => {
+  return name === 'linbudu'
+}
+```
+绝大部分情况下，typeof 返回的类型就是当你把鼠标悬浮在变量名上时出现的推导后的类型，并且是**最窄的推导程度（即到字面量类型的级别）**
+
+#### 类型守卫
+TypeScript 中提供了非常强大的类型推导能力，它会随着你的代码逻辑不断尝试收窄类型，这一能力称之为**类型的控制流分析**（也可以简单理解为类型推导）。
+
+在类型控制流分析下，每流过一个 if 分支，后续联合类型的分支就少了一个，因为这个类型已经在这个分支处理过了，不会进入下一个分支
+```typescript
+declare const strOrNumOrBool: string | number | boolean;
+
+if (typeof strOrNumOrBool === "string") {
+  // 一定是字符串！
+  strOrNumOrBool.charAt(1);
+} else if (typeof strOrNumOrBool === "number") {
+  // 一定是数字！
+  strOrNumOrBool.toFixed();
+} else if (typeof strOrNumOrBool === "boolean") {
+  // 一定是布尔值！
+  strOrNumOrBool === true;
+} else {
+  // 要是走到这里就说明有问题！
+  const _exhaustiveCheck: never = strOrNumOrBool;
+  throw new Error(`Unknown input type: ${_exhaustiveCheck}`);
+}
+```
+但是会出现一种情况，就是if条件中的表达式被抽取出来了，那么这种推导就会失效
+所以这时加入了**is关键字**，即 is 关键字 + 预期类型
+```typescript
+function isString(input: unknown): input is string {
+  return typeof input === "string";
+}
+
+function foo(input: string | number) {
+  if (isString(input)) {
+    // 正确了
+    (input).replace("linbudu", "linbudu599")
+  }
+  if (typeof input === 'number') { }
+  // ...
+}
+```
+当isString执行时内部返回`true`的时候那么input就被推导为string类型，这时string会**被这个类型守卫调用方后续的类型控制流分析收集到**
+```typescript
+export type Falsy = false | "" | 0 | null | undefined;
+
+export const isFalsy = (val: unknown): val is Falsy => !val;
+
+// 不包括不常用的 symbol 和 bigint
+export type Primitive = string | number | boolean | undefined;
+
+export const isPrimitive = (val: unknown): val is Primitive => ['string', 'number', 'boolean' , 'undefined'].includes(typeof val);
+```
+
+#### in
+在js中，in可以通过key in object的形式来判断key是否在object或其原型链上，在TypeScript中也可以用来保护类型
+```typescript
+interface Foo {
+  foo: string;
+  fooOnly: boolean;
+  shared: number;
+}
+
+interface Bar {
+  bar: string;
+  barOnly: boolean;
+  shared: number;
+}
+
+function handle(input: Foo | Bar) {
+  if ('foo' in input) {
+    input.fooOnly;
+  } else {
+    input.barOnly;
+  }
+}
+```
+因为在Foo和Bar中存在 foo / bar 和 fooOnly / barOnly这种独个类型独有的属性，因此可以作为**可辨识属性**，Foo 与 Bar 又因为存在这样具有区分能力的辨识属性，可以称为**可辨识联合类型**，而在其中的shared就不能用来分辨Foo和Bar，因为他**同时存在**两个类型中，且**一模一样**
+
+这个可辨识属性可以是结构层面的，比如 __结构A中的prop是数组而B中的prop是对象__ ，又或者 __A存在prop而B不存在__ ，甚至可以是 __共同属性的字面量类型差异__ 
+```typescript
+interface Foo {
+  kind: 'foo';
+  diffType: string;
+  fooOnly: boolean;
+  shared: number;
+}
+
+interface Bar {
+  kind: 'bar';
+  diffType: number;
+  barOnly: boolean;
+  shared: number;
+}
+
+function handle1(input: Foo | Bar) {
+  if (input.kind === 'foo') {
+    input.fooOnly;
+  } else {
+    input.barOnly;
+  }
+}
+```
+#### instanceof
+JavaScript 中还存在一个功能类似于 typeof 与 in 的操作符：instanceof，它判断的是原型级别的关系，如 `foo instanceof Base` 会沿着 foo 的原型链查找 `Base.prototype` 是否存在其上。当然，在 ES6 已经无处不在的今天，我们也可以简单地认为这是判断 foo 是否是 Base 类的实例。同样的，instanceof 也可以用来进行类型保护
+```typescript
+class FooBase {}
+
+class BarBase {}
+
+class Foo extends FooBase {
+  fooOnly() {}
+}
+class Bar extends BarBase {
+  barOnly() {}
+}
+
+function handle(input: Foo | Bar) {
+  if (input instanceof FooBase) {
+    input.fooOnly();
+  } else {
+    input.barOnly();
+  }
+}
+```
+
+#### 类型断言守卫
+```typescript
+import assert from 'assert';
+
+let name: any = 'linbudu';
+
+assert(typeof name === 'number');
+
+// number 类型
+name.toFixed();
+```
+上面这段代码在运行时会抛出一个错误，因为 assert 接收到的表达式执行结果为 false。这其实也类似类型守卫的场景：如果断言**不成立**，比如在这里意味着值的类型不为 number，那么在断言下方的代码就执行不到（相当于 Dead Code）。如果断言通过了，不管你最开始是什么类型，断言后的代码中就**一定是符合断言的类型**，比如在这里就是 number。
+
+为此，TypeScript 3.7 版本专门引入了 asserts 关键字来进行断言场景下的类型守卫，比如前面 assert 方法的签名可以是这样的
+```typescript
+function assert(condition: any, msg?: string): asserts condition {
+  if (!condition) {
+    throw new Error(msg);
+  }
+}
+```
+这里condition相当于是判断条件，`asserts condition`：这告诉 TypeScript 编译器，如果 assert 函数没有抛出错误，那么 `condition` 一定为真
+
+同时类型断言守卫也可以配合**is关键字**来提供进一步的类型守卫的能力
+```typescript
+let name: any = 'linbudu';
+
+function assertIsNumber(val: any): asserts val is number {
+  if (typeof val !== 'number') {
+    throw new Error('Not a number!');
+  }
+}
+
+assertIsNumber(name);
+
+// number 类型！
+name.toFixed();
+```
+
+### 接口和类型别名的合并
+在交叉类型一节中，你可能会注意到，接口和类型别名都能直接使用交叉类型。但除此以外，接口还能够使用继承进行合并，在继承时子接口可以声明同名属性，但并不能覆盖掉父接口中的此属性。**子接口中的属性类型需要能够兼容（extends）父接口中的属性类型**：
+```typescript
+interface Struct1 {
+  primitiveProp: string;
+  objectProp: {
+    name: string;
+  };
+  unionProp: string | number;
+}
+
+// 接口“Struct2”错误扩展接口“Struct1”。
+interface Struct2 extends Struct1 {
+  // “primitiveProp”的类型不兼容。不能将类型“number”分配给类型“string”。
+  primitiveProp: number;
+  // 属性“objectProp”的类型不兼容。
+  objectProp: {
+    age: number;
+  };
+  // 属性“unionProp”的类型不兼容。
+  // 不能将类型“boolean”分配给类型“string | number”。
+  unionProp: boolean;
+}
+```
+类似的，如果你直接声明多个同名接口，虽然接口会进行合并，但这些同名属性的类型仍然需要兼容
+
+接口和类型别名之间合并规则：**接口继承类型别名，和类型别名使用交叉类型合并接口**
+```typescript
+type Base = {
+  name: string;
+};
+
+interface IDerived extends Base {
+  // 报错！就像继承接口一样需要类型兼容
+  name: number;
+  age: number;
+}
+
+interface IBase {
+  name: string;
+}
+
+// 合并后的 name 同样是 never 类型
+type Derived = IBase & {
+  name: number;
+};
+```
