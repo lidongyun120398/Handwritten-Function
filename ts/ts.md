@@ -914,3 +914,178 @@ type Derived = IBase & {
   name: number;
 };
 ```
+
+### 泛型
+#### 类型别名中的泛型
+```typescript
+type Factory<T> = T | number | string;
+//转成字符串
+type Stringify<T> = {
+  [K in keyof T]: string;
+};
+//复制一份新的类型
+type Clone<T> = {
+  [K in keyof T]: T[K];
+};
+//部分参数可省略
+type Partial<T> = {
+    [P in keyof T]?: T[P];
+};
+
+type IsEqual<T> = T extends true ? 1 : 2; //当输入的泛型为true或类型转换后为true则IsEqual为1，否则为2
+```
+
+#### 泛型约束与默认值
+像函数可以声明一个参数的默认值一样，泛型同样有着默认值的设定
+```typescript
+type Factory<T = boolean> = T | number | string
+
+const foo: Factory = false;
+```
+泛型还能做到一样函数参数做不到的事：**泛型约束**
+```typescript
+type ResStatus<ResCode extends number> = ResCode extends 10000 | 10001 | 10002
+  ? 'success'
+  : 'failure';
+
+
+type Res1 = ResStatus<10000>; // "success"
+type Res2 = ResStatus<20000>; // "failure"
+
+type Res3 = ResStatus<'10000'>; // 类型“string”不满足约束“number”。
+```
+
+#### 多泛型关联
+```typescript
+type Conditional<Type, Condition, TruthyResult, FalsyResult> =
+  Type extends Condition ? TruthyResult : FalsyResult;
+
+//  "passed!"
+type Result1 = Conditional<'linbudu', string, 'passed!', 'rejected!'>;
+
+// "rejected!"
+type Result2 = Conditional<'linbudu', boolean, 'passed!', 'rejected!'>;
+```
+这个例子表明，**多泛型参数其实就像接受更多参数的函数，其内部的运行逻辑（类型操作）会更加抽象，表现在参数（泛型参数）需要进行的逻辑运算（类型操作）会更加复杂**。
+
+#### 对象中的泛型
+```typescript
+interface IRes<TData = unknown> {
+  code: number;
+  error?: string;
+  data: TData;
+}
+
+interface IUserProfileRes {
+  name: string;
+  homepage: string;
+  avatar: string;
+}
+
+function fetchUserProfile(): Promise<IRes<IUserProfileRes>> {}
+
+type StatusSucceed = boolean;
+function handleOperation(): Promise<IRes<StatusSucceed>> {}
+```
+
+#### 函数中的泛型
+```typescript
+function handle<T>(input: T): T {}
+```
+我们为函数声明了一个泛型参数 T，并将参数的类型与返回值类型指向这个泛型参数。这样，在这个函数接收到参数时，**T 会自动地被填充为这个参数的类型**。这也就意味着你不再需要预先确定参数的可能类型了，而**在返回值与参数类型关联的情况下，也可以通过泛型参数来进行运算**。
+
+在基于参数类型进行填充泛型时，其类型信息会被推断到尽可能精确的程度，如这里会**推导到字面量类型而不是基础类型**。这是因为在直接传入一个值时，这个值是不会再被修改的，因此可以推导到最精确的程度。而如果你使用一个变量作为参数，那么只会使用这个变量标注的类型（在没有标注时，会使用推导出的类型）。
+```typescript
+function handle<T>(input: T): T {}
+
+const author = "linbudu"; // 使用 const 声明，被推导为 "linbudu"
+
+let authorAge = 18; // 使用 let 声明，被推导为 number
+
+handle(author); // 填充为字面量类型 "linbudu"
+handle(authorAge); // 填充为基础类型 number
+```
+也可以在这个基础上对泛型做约束
+```typescript
+function handle<T extends string | number>(input: T): T {}
+```
+
+箭头函数的泛型
+```typescript
+const handle = <T extends any>(input: T): T => input;
+```
+
+#### Class中的泛型
+ Class 中的泛型和函数中的泛型非常类似，只不过函数中泛型参数的消费方是参数和返回值类型，Class 中的泛型消费方则是属性、方法、乃至装饰器等。同时 Class 内的方法还可以再声明自己独有的泛型参数。我们直接来看完整的示例
+```typescript
+class Queue<TElementType> {
+  private _list: TElementType[];
+
+  constructor(initial: TElementType[]) {
+    this._list = initial;
+  }
+
+  // 入队一个队列泛型子类型的元素
+  enqueue<TType extends TElementType>(ele: TType): TElementType[] {
+    this._list.push(ele);
+    return this._list;
+  }
+
+  // 入队一个任意类型元素（无需为队列泛型子类型）
+  enqueueWithUnknownType<TType>(element: TType): (TElementType | TType)[] {
+    return [...this._list, element];
+  }
+
+  // 出队
+  dequeue(): TElementType[] {
+    this._list.shift();
+    return this._list;
+  }
+}
+```
+其中，enqueue 方法的入参类型 TType 被约束为队列类型的子类型，而 enqueueWithUnknownType 方法中的 TType 类型参数则不会受此约束，它会在其被调用时再对应地填充，同时也会在返回值类型中被使用
+
+#### 内置方法中的泛型
+TypeScript 中为非常多的内置对象都预留了泛型坑位，如 Promise 中
+```typescript
+function p() {
+  return new Promise<boolean>((resolve, reject) => {
+    resolve(true);
+  });
+}
+```
+还有数组Array<T>中
+```typescript
+const arr: Array<number> = [1, 2, 3];
+
+// 类型“string”的参数不能赋给类型“number”的参数。
+arr.push('linbudu');
+// 类型“string”的参数不能赋给类型“number”的参数。
+arr.includes('linbudu');
+
+// number | undefined
+arr.find(() => false);
+
+// 第一种 reduce
+arr.reduce((prev, curr, idx, arr) => {
+  return prev;
+}, 1);
+
+// 第二种 reduce
+// 报错：不能将 number 类型的值赋值给 never 类型
+arr.reduce((prev, curr, idx, arr) => {
+  return [...prev, curr]
+}, []);
+```
+reduce 方法是相对特殊的一个，它的类型声明存在几种不同的重载：
+
++ 当你不传入初始值时，泛型参数会从数组的元素类型中进行填充。
++ 当你传入初始值时，如果初始值的类型与数组元素类型一致，则使用数组的元素类型进行填充。即这里第一个 reduce 调用。
++ 当你传入一个数组类型的初始值，比如这里的第二个 reduce 调用，reduce 的泛型参数会默认从这个初始值推导出的类型进行填充，如这里是 never[]。
+
+其中第三种情况也就意味着信息不足，无法推导出正确的类型，我们可以手动传入泛型参数来解决：
+```typescript
+arr.reduce<number[]>((prev, curr, idx, arr) => {
+  return prev;
+}, []);
+```
