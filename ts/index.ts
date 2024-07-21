@@ -34,6 +34,13 @@ declare const uniqueSymbolFoo: unique symbol;
 // const uniqueSymbolBaz: typeof uniqueSymbolFoo = Symbol(0)
 
 
+export declare class TagProtector<T extends string> {
+  protected __tag__: T;
+}
+
+export type Nominal<T, U extends string> = T & TagProtector<U>;
+
+
 
 
 console.log('Hello TypeScript')

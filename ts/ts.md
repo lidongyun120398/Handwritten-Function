@@ -1,4 +1,4 @@
-#### 字面量类型
+### 字面量类型
 
 字面量类型来解决如果status定义为string类型或者code定义为number类型精度不够的问题
 
@@ -20,7 +20,7 @@ interface Tmp {
 }
 ```
 
-#### 联合类型
+### 联合类型
 联合类型代表了一组类型的可用集合，只要最终赋值的类型属于联合类型成员之一，就可以认为符合这个联合类型
 ```typescript
 interface Tmp {
@@ -48,7 +48,7 @@ interface Tmp {
 ```
 + 在这里的第一个管道符(|)是为了格式的一致性和美观添加的，去掉后该类型仍然合法
 
-#### 枚举
+### 枚举
 ```typescript
 enum PageUrl {
   Home_Page_Url = 'url1',
@@ -96,7 +96,7 @@ const fooValue = Items.Foo; // 0
 ```
 对于常量枚举，你只能**通过枚举成员访问枚举值**（而不能通过值访问成员）。同时，在编译产物中并不会存在一个额外的辅助对象（如上面的 Items 对象），对枚举成员的访问会被**直接内联替换为枚举的值**
 
-#### 函数
+### 函数
 函数的类型就是描述了**函数入参类型**与**函数返回值类型**
 + 函数声明方式定义
 ```typescript
@@ -1089,3 +1089,227 @@ arr.reduce<number[]>((prev, curr, idx, arr) => {
   return prev;
 }, []);
 ```
+
+### 结构化类型系统
+```typescript
+class Cat{
+  eat(){}
+}
+
+class Dog{
+  eat(){}
+}
+
+function feedCat(cat: Cat){}
+
+feedCat(new Dog());
+```
+在这里`feedCat`需要是一只猫，但是传入Dog也不会报错,这是因为TypeScript的特性: **结构化类型系统**。
+而当我们在Cat中加上一个独特的方法
+```typescript
+class Cat{
+  eat(){},
+  meow(){}
+}
+
+class Dog{
+  eat(){}
+}
+
+function feedCat(cat: Cat){}
+
+feedCat(new Dog());//报错
+```
+这时就会报错，我们只能用`Cat`来调用
+
+在我们最初的例子里，Cat 与 Dog 类型上的方法是一致的，所以它们虽然是两个名字不同的类型，但仍然被视为结构一致，这就是结构化类型系统的特性。
+
+你可能听过结构类型的别称**鸭子类型（Duck Typing**，这个名字来源于**鸭子测试（Duck Test）**。其核心理念是，**如果你看到一只鸟走起来像鸭子，游泳像鸭子，叫得也像鸭子，那么这只鸟就是鸭子**
+
+也就说，鸭子类型中两个类型的关系是通过对象中的属性方法来判断的。
+
+而且如果我们是给`Dog`上增加方法
+```typescript
+class Cat{
+  eat(){}
+}
+
+class Dog{
+  eat(){}
+  bark(){}
+}
+
+function feedCat(cat: Cat){}
+
+feedCat(new Dog());
+```
+这时也不会报错，因为`Dog`中存在`Cat`中的方法，所以`Dog`也可以被当作`Cat`来使用。
+
+面向对象编程中的里氏替换原则也提到了鸭子测试：**如果它看起来像鸭子，叫起来也像鸭子，但是却需要电池才能工作，那么你的抽象很可能出错了**。
+
+更进一步，在比较对象类型的属性时，同样会采用结构化类型系统进行判断。而对结构中的函数类型（即方法）进行比较时，同样存在类型的兼容性比较：
+```typescript
+class Cat {
+  eat(): boolean {
+    return true
+  }
+}
+
+class Dog {
+  eat(): number {
+    return 599;
+  }
+}
+
+function feedCat(cat: Cat) { }
+
+// 报错！
+feedCat(new Dog())
+```
+
+严格来说，鸭子类型系统和结构化类型系统并不完全一致，结构化类型系统意味着**基于完全的类型结构来判断类型兼容性**，而鸭子类型则只基于**运行时访问的部分**来决定。也就是说，如果我们调用了走、游泳、叫这三个方法，那么传入的类型只需要存在这几个方法即可（而不需要类型结构完全一致）。但由于 TypeScript 本身并不是在运行时进行类型检查（也做不到），同时官方文档中同样认为这两个概念是一致的（One of TypeScript’s core principles is that type checking focuses on the shape that values have. This is sometimes called “duck typing” or “structural typing”.）。因此在这里，我们可以直接认为鸭子类型与结构化类型是同一概念。
+
+### 标称类型系统
+标称类型系统（Nominal Typing System）要求，两个可兼容的类型，**其名称必须是完全一致的**
+```typescript
+type USD = number;
+type CNY = number;
+
+const CNYCount: CNY = 200;
+const USDCount: USD = 200;
+
+function addCNY(source: CNY, input: CNY) {
+  return source + input;
+}
+
+addCNY(CNYCount, USDCount)
+```
+在结构化类型系统中，USD 与 CNY （分别代表美元单位与人民币单位）被认为是两个完全一致的类型，因此在 addCNY 函数中可以传入 USD 类型的变量。这就很离谱了，人民币与美元这两个单位实际的意义并不一致，怎么能进行相加？
+
+在标称类型系统中，CNY 与 USD 被认为是两个完全不同的类型，因此能够避免这一情况发生。在《编程与类型系统》一书中提到，类型的重要意义之一是**限制了数据的可用操作与实际意义**，这一点在标称类型系统中的体现要更加明显。比如，上面我们可以通过类型的结构，来让结构化类型系统认为两个类型具有父子类型关系，而对于标称类型系统，父子类型关系只能通过显式的继承来实现，称为标称子类型（Nominal Subtyping）
+```typescript
+class Cat { }
+// 实现一只短毛猫！
+class ShorthairCat extends Cat { }
+```
+
+### 类型系统层级
+类型层级实际上指的是，**TypeScript 中所有类型的兼容关系，从最上面一层的 any 类型，到最底层的 never 类型**。
+
+#### 判断类型兼容的方式
+1. 条件类型判断
+```typescript
+type Result = 'linbudu' extends string ? 1 : 2;
+```
+
+2. 赋值判断
+```typescript
+declare let source: string;
+
+declare let anyType: any;
+declare let neverType: never;
+
+anyType = source;
+
+// 不能将类型“string”分配给类型“never”。
+neverType = source;
+```
+
+对于变量 a = 变量 b，如果成立，意味着 `<变量 b 的类型> extends <变量 a 的类型> `成立，即 **b 类型是 a 类型的子类型**，在这里即是`string extends never `，这明显是不成立的
+
+#### 类型层级链
+首先，我们从原始类型、对象类型（后文统称为基础类型）和它们对应的字面量类型开始
+```typescript
+type Result1 = "linbudu" extends string ? 1 : 2; // 1
+type Result2 = 1 extends number ? 1 : 2; // 1
+type Result3 = true extends boolean ? 1 : 2; // 1
+type Result4 = { name: string } extends object ? 1 : 2; // 1
+type Result5 = { name: 'linbudu' } extends object ? 1 : 2; // 1
+type Result6 = [] extends object ? 1 : 2; // 1
+```
+
+很明显，一个基础类型和它们对应的字面量类型必定存在父子类型关系。严格来说，object 出现在这里并不恰当，因为它实际上代表着**所有非原始类型的类型，即数组、对象与函数类型**，所以这里 Result6 成立的原因即是[]这个字面量类型也可以被认为是 object 的字面量类型。我们将结论简记为，**字面量类型 < 对应的原始类型**。
+
+__*结论：字面量类型 < 包含此字面量类型的联合类型（同一基础类型） < 对应的原始类型*__
+
+**在结构化类型系统的比较下，String 会被认为是 {} 的子类型**
+这里从 `string < {} < object` 看起来构建了一个类型链，但实际上 `string extends object` 并不成立
+```typescript
+type Tmp = string extends object ? 1 : 2; // 2
+```
+
+当然不，这里的 `{} extends `和` extends {} `实际上是两种完全不同的比较方式。`{} extends object` 和` {} extends Object `意味着， `{}` 是 object 和 Object 的字面量类型，是从**类型信息的层面**出发的，即**字面量类型在基础类型之上提供了更详细的类型信息**。`object extends {}` 和 `Object extends {}` 则是从**结构化类型系统的比较**出发的，即` {}` 作为一个一无所有的空对象，几乎可以被视作是所有类型的基类，万物的起源。如果混淆了这两种类型比较的方式，就可能会得到 `string extends object` 这样的错误结论。
+
+而 `object extends Object` 和 `Object extends object` 这两者的情况就要特殊一些，它们是因为“系统设定”的问题，Object 包含了所有除 Top Type 以外的类型（基础类型、函数类型等），object 包含了所有非原始类型的类型，即数组、对象与函数类型，这就导致了你中有我、我中有你的神奇现象。
+
+__*结论：原始类型 < 原始类型对应的装箱类型 < Object 类型*__
+
+#### Top Type: any和unknown
+any 与 unknown 是系统中设定为 Top Type 的两个类型，它们无视一切因果律，是类型世界的规则产物
+
+Object也是 any 与 unknown 类型的子类型
+
+```typescript
+type Result22 = Object extends any ? 1 : 2; // 1
+type Result23 = Object extends unknown ? 1 : 2; // 1
+
+type Result24 = any extends Object ? 1 : 2; // 1 | 2
+type Result25 = unknown extends Object ? 1 : 2; // 2
+
+type Result26 = any extends 'linbudu' ? 1 : 2; // 1 | 2
+type Result27 = any extends string ? 1 : 2; // 1 | 2
+type Result28 = any extends {} ? 1 : 2; // 1 | 2
+type Result29 = any extends never ? 1 : 2; // 1 | 2
+```
+
+在上面的代码中我们可以发现，部分`any extends`的代码会返回`1 | 2`。因为“系统设定”的原因。any 代表了任何可能的类型，当我们使用` any extends `时，它包含了“**让条件成立的一部分**”，以及“**让条件不成立的一部分**”。而从实现上说，在 TypeScript 内部代码的条件类型处理中，如果接受判断的是 any，那么会直接**返回条件类型结果组成的联合类型**。
+
+__*结论： Object < any / unknown*__
+
+__*结论： never < 字面量类型*__
+
+结合上面的结构化类型系统与类型系统设定，我们还可以构造出一条类型层级链
+```typescript
+type VerboseTypeChain = never extends 'linbudu'
+  ? 'linbudu' extends 'linbudu' | 'budulin'
+  ? 'linbudu' | 'budulin' extends string
+  ? string extends {}
+  ? string extends String
+  ? String extends {}
+  ? {} extends object
+  ? object extends {}
+  ? {} extends Object
+  ? Object extends {}
+  ? object extends Object
+  ? Object extends object
+  ? Object extends any
+  ? Object extends unknown
+  ? any extends unknown
+  ? unknown extends any
+  ? 8
+  : 7
+  : 6
+  : 5
+  : 4
+  : 3
+  : 2
+  : 1
+  : 0
+  : -1
+  : -2
+  : -3
+  : -4
+  : -5
+  : -6
+  : -7
+  : -8 //8
+```  
+
++ 类型从高到底的顺序是:
+  + Top Type: any unknown
+  + 顶级原型: Object
+  + 装箱类型: String Number Boolean
+  + 基础类型(拆箱类型):string number boolean
+  + 字面量类型
+  + Bottom Type: never
+
