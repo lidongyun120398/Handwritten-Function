@@ -679,9 +679,9 @@ interface StringifiedFoo {
 #### 类型查询操作符
 在js中的typeof操作符可以检查类型，会返回string，number，object，undefined等，除此之外在TypeScript中typeof会返回一个TypeScript类型
 ```typescript
-const str = "linbudu";
+const str = "ldy";
 
-const obj = { name: "linbudu" };
+const obj = { name: "ldy" };
 
 const nullVar = null;
 const undefinedVar = undefined;
@@ -690,7 +690,7 @@ const func = (input: string) => {
   return input.length > 10;
 }
 
-type Str = typeof str; // "linbudu"
+type Str = typeof str; // "ldy"
 type Obj = typeof obj; // { name: string; }
 type Null = typeof nullVar; // null
 type Undefined = typeof undefined; // undefined
@@ -701,7 +701,7 @@ const func = (input: string) => {
 }
 
 const func2: typeof func = (name: string) => {
-  return name === 'linbudu'
+  return name === 'ldy'
 }
 ```
 绝大部分情况下，typeof 返回的类型就是当你把鼠标悬浮在变量名上时出现的推导后的类型，并且是**最窄的推导程度（即到字面量类型的级别）**
@@ -738,7 +738,7 @@ function isString(input: unknown): input is string {
 function foo(input: string | number) {
   if (isString(input)) {
     // 正确了
-    (input).replace("linbudu", "linbudu599")
+    (input).replace("ldy", "ldy599")
   }
   if (typeof input === 'number') { }
   // ...
@@ -832,7 +832,7 @@ function handle(input: Foo | Bar) {
 ```typescript
 import assert from 'assert';
 
-let name: any = 'linbudu';
+let name: any = 'ldy';
 
 assert(typeof name === 'number');
 
@@ -853,7 +853,7 @@ function assert(condition: any, msg?: string): asserts condition {
 
 同时类型断言守卫也可以配合**is关键字**来提供进一步的类型守卫的能力
 ```typescript
-let name: any = 'linbudu';
+let name: any = 'ldy';
 
 function assertIsNumber(val: any): asserts val is number {
   if (typeof val !== 'number') {
@@ -961,10 +961,10 @@ type Conditional<Type, Condition, TruthyResult, FalsyResult> =
   Type extends Condition ? TruthyResult : FalsyResult;
 
 //  "passed!"
-type Result1 = Conditional<'linbudu', string, 'passed!', 'rejected!'>;
+type Result1 = Conditional<'ldy', string, 'passed!', 'rejected!'>;
 
 // "rejected!"
-type Result2 = Conditional<'linbudu', boolean, 'passed!', 'rejected!'>;
+type Result2 = Conditional<'ldy', boolean, 'passed!', 'rejected!'>;
 ```
 这个例子表明，**多泛型参数其实就像接受更多参数的函数，其内部的运行逻辑（类型操作）会更加抽象，表现在参数（泛型参数）需要进行的逻辑运算（类型操作）会更加复杂**。
 
@@ -998,11 +998,11 @@ function handle<T>(input: T): T {}
 ```typescript
 function handle<T>(input: T): T {}
 
-const author = "linbudu"; // 使用 const 声明，被推导为 "linbudu"
+const author = "ldy"; // 使用 const 声明，被推导为 "ldy"
 
 let authorAge = 18; // 使用 let 声明，被推导为 number
 
-handle(author); // 填充为字面量类型 "linbudu"
+handle(author); // 填充为字面量类型 "ldy"
 handle(authorAge); // 填充为基础类型 number
 ```
 也可以在这个基础上对泛型做约束
@@ -1059,9 +1059,9 @@ function p() {
 const arr: Array<number> = [1, 2, 3];
 
 // 类型“string”的参数不能赋给类型“number”的参数。
-arr.push('linbudu');
+arr.push('ldy');
 // 类型“string”的参数不能赋给类型“number”的参数。
-arr.includes('linbudu');
+arr.includes('ldy');
 
 // number | undefined
 arr.find(() => false);
@@ -1199,7 +1199,7 @@ class ShorthairCat extends Cat { }
 #### 判断类型兼容的方式
 1. 条件类型判断
 ```typescript
-type Result = 'linbudu' extends string ? 1 : 2;
+type Result = 'ldy' extends string ? 1 : 2;
 ```
 
 2. 赋值判断
@@ -1220,11 +1220,11 @@ neverType = source;
 #### 类型层级链
 首先，我们从原始类型、对象类型（后文统称为基础类型）和它们对应的字面量类型开始
 ```typescript
-type Result1 = "linbudu" extends string ? 1 : 2; // 1
+type Result1 = "ldy" extends string ? 1 : 2; // 1
 type Result2 = 1 extends number ? 1 : 2; // 1
 type Result3 = true extends boolean ? 1 : 2; // 1
 type Result4 = { name: string } extends object ? 1 : 2; // 1
-type Result5 = { name: 'linbudu' } extends object ? 1 : 2; // 1
+type Result5 = { name: 'ldy' } extends object ? 1 : 2; // 1
 type Result6 = [] extends object ? 1 : 2; // 1
 ```
 
@@ -1256,7 +1256,7 @@ type Result23 = Object extends unknown ? 1 : 2; // 1
 type Result24 = any extends Object ? 1 : 2; // 1 | 2
 type Result25 = unknown extends Object ? 1 : 2; // 2
 
-type Result26 = any extends 'linbudu' ? 1 : 2; // 1 | 2
+type Result26 = any extends 'ldy' ? 1 : 2; // 1 | 2
 type Result27 = any extends string ? 1 : 2; // 1 | 2
 type Result28 = any extends {} ? 1 : 2; // 1 | 2
 type Result29 = any extends never ? 1 : 2; // 1 | 2
@@ -1270,9 +1270,9 @@ __*结论： never < 字面量类型*__
 
 结合上面的结构化类型系统与类型系统设定，我们还可以构造出一条类型层级链
 ```typescript
-type VerboseTypeChain = never extends 'linbudu'
-  ? 'linbudu' extends 'linbudu' | 'budulin'
-  ? 'linbudu' | 'budulin' extends string
+type VerboseTypeChain = never extends 'ldy'
+  ? 'ldy' extends 'ldy' | 'dyl'
+  ? 'ldy' | 'dyl' extends string
   ? string extends {}
   ? string extends String
   ? String extends {}
@@ -1313,3 +1313,249 @@ type VerboseTypeChain = never extends 'linbudu'
   + 字面量类型
   + Bottom Type: never
 
+
+### 条件类型
+#### 条件类型基础
+类似于js中的三元表达式一样，基本语法如下:
+```typescript
+TypeA extends TypeB ? Result1 : Result2
+```
+
+条件类型应用，对基础类型提取
+```typescript
+function universalAdd<T extends number | bigint | string>(
+	x: T,
+	y: T
+): LiteralToPrimitive<T> {
+	return x + (y as any);
+}
+
+export type LiteralToPrimitive<T> = T extends number
+	? number
+	: T extends bigint
+	? bigint
+	: T extends string
+	? string
+	: never;
+
+universalAdd("ldy", "599"); // string
+universalAdd(599, 1); // number
+universalAdd(10n, 10n); // bigint
+```
+
+函数类型的比较
+```typescript
+type Func = (...args: any[]) => any;
+
+type FunctionConditionType<T extends Func> = T extends (
+  ...args: any[]
+) => string
+  ? 'A string return func!'
+  : 'A non-string return func!';
+
+//  "A string return func!"
+type StringResult = FunctionConditionType<() => string>;
+// 'A non-string return func!';
+type NonStringResult1 = FunctionConditionType<() => boolean>;
+// 'A non-string return func!';
+type NonStringResult2 = FunctionConditionType<() => number>;
+```
+在这里第一个extends的作用是对传入的泛型`T`约束，相当于**参数校验**，而第二个extends的作用是对参数进行条件判断，相当于实际内部逻辑
+
+#### infer关键字
+TypeScript 中支持通过 infer 关键字来**在条件类型中提取类型的某一部分信息**
+拿上面的例子举例
+```typescript
+type FunctionReturnType<T extends Func> = T extends (
+  ...args: any[]
+) => infer R
+  ? R
+  : never;
+```
+`infer R`的作用是提取函数的返回值类型，R就表示待推断的类型，`infer` 只能在条件类型中使用，因为我们实际上仍然需要类型结构是一致的  
+
+当然并不局限于函数类型结构，还可以是数组
+```typescript
+type Swap<T extends any[]> = T extends [infer A, infer B] ? [B, A] : T;
+
+type SwapResult1 = Swap<[1, 2]>; // 符合元组结构，首尾元素替换[2, 1]
+type SwapResult2 = Swap<[1, 2, 3]>; // 不符合结构，没有发生替换，仍是 [1, 2, 3]
+```
+
+我们也可以用rest来处理任意长度的情况
+```typescript
+// 提取首尾两个
+type ExtractStartAndEnd<T extends any[]> = T extends [
+  infer Start,
+  ...any[],
+  infer End
+]
+  ? [Start, End]
+  : T;
+
+// 调换首尾两个
+type SwapStartAndEnd<T extends any[]> = T extends [
+  infer Start,
+  ...infer Left,
+  infer End
+]
+  ? [End, ...Left, Start]
+  : T;
+
+// 调换开头两个
+type SwapFirstTwo<T extends any[]> = T extends [
+  infer Start1,
+  infer Start2,
+  ...infer Left
+]
+  ? [Start2, Start1, ...Left]
+  : T;
+```
+
+infer结构也可以是接口
+```typescript
+// 提取对象的属性类型
+type PropType<T, K extends keyof T> = T extends { [Key in K]: infer R }
+  ? R
+  : never;
+
+type PropTypeResult1 = PropType<{ name: string }, 'name'>; // string
+type PropTypeResult2 = PropType<{ name: string; age: number }, 'name' | 'age'>; // string | number
+
+// 反转键名与键值
+type ReverseKeyValue<T extends Record<string, unknown>> = T extends Record<infer K, infer V> ? Record<V & string, K> : never
+
+type ReverseKeyValueResult1 = ReverseKeyValue<{ "key": "value" }>; // { "value": "key" }
+```
+在`ReverseKeyValue`中，我们最后使用了`V & string`,这是因为，泛型参数 V 的来源是从键值类型推导出来的，TypeScript 中这样对键值类型进行 infer 推导，将导致类型信息丢失，而不满足索引签名类型只允许 `string | number | symbol`的要求。我们使用 `V & string` 这一形式，就确保了最终符合条件的类型参数 V 一定会满足 `string | never` 这个类型，因此可以被视为合法的索引签名类型
+
+infer结构也可以是Promise结构
+```typescript
+type PromiseValue<T> = T extends Promise<infer V> ? V : T;
+
+type PromiseValueResult1 = PromiseValue<Promise<number>>; // number
+type PromiseValueResult2 = PromiseValue<number>; // number，但并没有发生提取
+```
+#### 分布式条件类型
+通过几个例子来解释
+```typescript
+type Condition<T> = T extends 1 | 2 | 3 ? T : never;
+
+// 1 | 2 | 3
+type Res1 = Condition<1 | 2 | 3 | 4 | 5>;
+
+// never
+type Res2 = 1 | 2 | 3 | 4 | 5 extends 1 | 2 | 3 ? 1 | 2 | 3 | 4 | 5 : never;
+```
+Res1和Res2的值不同，而他们的唯一差别在于**是否通过泛型传入**
+```typescript
+type Naked<T> = T extends boolean ? "Y" : "N";
+type Wrapped<T> = [T] extends [boolean] ? "Y" : "N";
+
+// "N" | "Y"
+type Res3 = Naked<number | boolean>;
+
+// "N"
+type Res4 = Wrapped<number | boolean>;
+```
+Res3和Res4的值不同，他们的唯一差别是**泛型参数是否被数组包裹**
+
+把上面的线索理一下，其实我们就大致得到了条件类型分布式起作用的条件。首先，你的类型参数需要是一个联合类型 。其次，类型参数需要通过泛型参数的方式传入，而不能直接进行条件类型判断（如 Res2 中）。最后，条件类型中的泛型参数不能被包裹。  
+
+而条件类型分布式特性会产生的效果也很明显了，即将这个联合类型拆开来，每个分支分别进行一次条件类型判断，再将最后的结果合并起来（如 Naked 中）。如果再严谨一些，其实我们就得到了官方的解释：  
+
+**对于属于裸类型参数的检查类型，条件类型会在实例化时期自动分发到联合类型上。（Conditional types in which the checked type is a naked type parameter are called distributive conditional types. Distributive conditional types are automatically distributed over union types during instantiation.）**
+
+这里的自动分发，我们可以这么理解：
+```typescript
+type Naked<T> = T extends boolean ? "Y" : "N";
+
+// (number extends boolean ? "Y" : "N") | (boolean extends boolean ? "Y" : "N")
+// "N" | "Y"
+type Res3 = Naked<number | boolean>;
+```
+
+而这里的裸类型参数，其实指的就是泛型参数是否完全裸露，我们上面使用数组包裹泛型参数只是其中一种方式，比如还可以这么做：
+```typescript
+export type NoDistribute<T> = T & {};
+
+type Wrapped<T> = NoDistribute<T> extends boolean ? "Y" : "N";
+
+type Res1 = Wrapped<number | boolean>; // "N"
+type Res2 = Wrapped<true | false>; // "Y"
+type Res3 = Wrapped<true | false | 599>; // "N"
+```  
+
+需要注意的是，我们并不是只会通过裸露泛型参数，来确保分布式特性能够发生。在某些情况下，我们也会需要包裹泛型参数来禁用掉分布式特性。最常见的场景也许还是联合类型的判断，即我们不希望进行联合类型成员的分布判断，而是希望直接判断这两个联合类型的兼容性判断，就像在最初的 Res2 中那样：
+```typescript
+type CompareUnion<T, U> = [T] extends [U] ? true : false;
+
+type CompareRes1 = CompareUnion<1 | 2, 1 | 2 | 3>; // true
+type CompareRes2 = CompareUnion<1 | 2, 1>; // false
+``` 
+通过将参数与条件都包裹起来的方式，我们对联合类型的比较就变成了数组成员类型的比较，在此时就会严格遵守类型层级一文中联合类型的类型判断了（子集为其子类型）。  
+
+```
+条件类型分布式起作用的条件:
+  类型参数需要是一个联合类型 。
+  类型参数需要通过泛型参数的方式传入，而不能直接进行条件类型判断）。
+  条件类型中的泛型参数不能被包裹
+```
+ 
+
+另外一种情况则是，当我们想判断一个类型是否为 never 时，也可以通过类似的手段：
+```typescript
+type IsNever<T> = [T] extends [never] ? true : false;
+
+type IsNeverRes1 = IsNever<never>; // true
+type IsNeverRes2 = IsNever<"linbudu">; // false
+```
+这里的原因其实并不是因为分布式条件类型。我们此前在类型层级中了解过，当条件类型的判断参数为 any，会直接返回条件类型两个结果的联合类型。而在这里其实类似，当通过泛型传入的参数为 never，则会直接返回 never。
+
+需要注意的是这里的 never 与 any 的情况并不完全相同，any 在直接**作为判断参数时、作为泛型参数时**都会产生这一效果：
+```typescript
+// 直接使用，返回联合类型
+type Tmp1 = any extends string ? 1 : 2;  // 1 | 2
+
+type Tmp2<T> = T extends string ? 1 : 2;
+// 通过泛型参数传入，同样返回联合类型
+type Tmp2Res = Tmp2<any>; // 1 | 2
+
+// 如果判断条件是 any，那么仍然会进行判断
+type Special1 = any extends any ? 1 : 2; // 1
+type Special2<T> = T extends any ? 1 : 2;
+type Special2Res = Special2<any>; // 1
+```
+而 never 仅在作为泛型参数时才会产生:
+```typescript
+// 直接使用，仍然会进行判断
+type Tmp3 = never extends string ? 1 : 2; // 1
+
+type Tmp4<T> = T extends string ? 1 : 2;
+// 通过泛型参数传入，会跳过判断
+type Tmp4Res = Tmp4<never>; // never
+
+// 如果判断条件是 never，还是仅在作为泛型参数时才跳过判断
+type Special3 = never extends never ? 1 : 2; // 1
+type Special4<T> = T extends never ? 1 : 2;
+type Special4Res = Special4<never>; // never
+```
+通过使用分布式条件类型，我们能轻易地进行集合之间的运算，比如交集:
+```typescript
+type Intersection<A, B> = A extends B ? A : never;
+
+type IntersectionRes = Intersection<1 | 2 | 3, 2 | 3 | 4>; // 2 | 3
+
+//还可以取到对象共有属性
+type C = Intersection<keyof A,keyof B>
+```
+#### IsAny、IsUnknown
+```typescript
+type IsAny<T> = 0 extends 1 & T ? true : false;
+
+type IsUnknown<T> = unknown extends T
+  ? IsAny<T> extends true
+    ? false
+    : true
+  : false;
+```
