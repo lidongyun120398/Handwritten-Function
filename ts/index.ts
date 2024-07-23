@@ -44,3 +44,29 @@ export type Nominal<T, U extends string> = T & TagProtector<U>;
 
 
 console.log('Hello TypeScript')
+
+
+type A = {
+  name:string,
+  age:number,
+  otherInfo:{
+    school:string,
+    classInfo:{
+      classmate:{
+        xiaowang:{
+          name:string
+        }
+      }
+    }
+  }
+}
+
+type DeepParital<T extends any> = {
+  [P in keyof T]? : T[P] extends object 
+    ? DeepParital<T[P]> 
+    : T[P]
+} 
+
+type B = DeepParital<A>
+
+const b: B = {name:'ldy',otherInfo:{classInfo:{classmate:{xiaowang:{name:'wang'}}}}}

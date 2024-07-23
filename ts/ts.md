@@ -1508,7 +1508,7 @@ type CompareRes2 = CompareUnion<1 | 2, 1>; // false
 type IsNever<T> = [T] extends [never] ? true : false;
 
 type IsNeverRes1 = IsNever<never>; // true
-type IsNeverRes2 = IsNever<"linbudu">; // false
+type IsNeverRes2 = IsNever<"ldy">; // false
 ```
 这里的原因其实并不是因为分布式条件类型。我们此前在类型层级中了解过，当条件类型的判断参数为 any，会直接返回条件类型两个结果的联合类型。而在这里其实类似，当通过泛型传入的参数为 never，则会直接返回 never。
 
@@ -1598,6 +1598,52 @@ type Mutable<T> = {
 
 + 思考：
   + 现在的属性修饰是浅层的，如果我想将嵌套在里面的对象类型也进行修饰，需要怎么改进？
+```typescript
+type DeepParital<T> = {
+  [P in keyof T]? : T[P] extends object 
+    ? DeepParital<T[P]> 
+    : T[P]
+}
+```
+其实这样功能就已经实现了，但是我在ts文件中，他的代码提示是这样的
+```typescript
+type B = {
+    name?: string | undefined;
+    age?: number | undefined;
+    otherInfo?: DeepPartial<{
+        school: string;
+        classInfo: {
+            classmate: [xiaowang: {
+                name: string;
+            }];
+        };
+    }> | undefined;
+}
+```
+这里的深层次没有被展示出来，一开始我以为是自己写的有问题，问了gpt一样的答案，于是问了问各位大佬
+**TS只有在用到的时候才会做计算**，这是这个问题的主要原因，于是添加了`T extends any`,深层递归时候校验一下就相当于使用了
+```typescript
+type DeepPartial<T extends object> = T extends any ? {
+  [P in keyof T]?: T[P] extends object 
+    ? DeepPartial<T[P]> 
+    : T[P]
+} : never
+
+type DeepRequired<T extends object> = T extends any ? 
+  {
+    [P in keyof T]-? : T[P] extends object ? DeepRequired<T[P]> : T[P]
+  } 
+  : never
+
+type DeepReadonly<T extends object> = {
+  readonly [K in keyof T]: T[K] extends object ? DeepReadonly<T[K]> : T[K];
+};
+
+type DeepMutable<T extends object> = {
+  -readonly [K in keyof T]: T[K] extends object ? DeepMutable<T[K]> : T[K];
+};
+```
+
   + 现在的属性修饰是全量的，如果我只想修饰部分属性呢？这里的部分属性，可能是基于传入已知的键名来确定（比如属性a、b），也可能是基于属性类型来确定(比如所有函数类型的值)？
 
 #### 结构工具类型
@@ -1771,3 +1817,74 @@ type FirstArrayItemType<T extends any[]> = T extends [infer P extends string, ..
 
 ```
 #### 模板字符串工具类型
+
+
+### void 返回值类型下的特殊情况
+上下文类型同样会推导并约束函数的返回值类型，但存在这么个特殊的情况，当内置函数类型的返回值类型为 void 时
+```typescript
+type CustomHandler = (name: string, age: number) => void;
+
+const handler1: CustomHandler = (name, age) => true;
+const handler2: CustomHandler = (name, age) => 'ldy';
+const handler3: CustomHandler = (name, age) => null;
+const handler4: CustomHandler = (name, age) => undefined;
+```
+这也是一条世界底层的规则，**上下文类型对于 void 返回值类型的函数，并不会真的要求它啥都不能返回**。然而，虽然这些函数实现可以返回任意类型的值，但**对于调用结果的类型，仍然是 void**：
+```typescript
+const result1 = handler1('ldy', 599); // void
+```
+
+看起来这是一种很奇怪的、错误的行为，但实际上，我们日常开发中的很多代码都需要这一“不正确的”行为才不会报错，比如以下这个例子：
+```typescript
+const arr: number[] = [];
+const list: number[] = [1, 2, 3];
+
+list.forEach((item) => arr.push(item));
+```
+这是我们常用的简写方式，然而，push 方法的返回值是一个 number 类型（push 后数组的长度），而 forEach 的上下文类型声明中要求返回值是 void 类型。如果此时 void 类型真的不允许任何返回值，那这里我们就需要多套一个代码块才能确保类型符合了。
+
+但这真的是有必要的吗？对于一个 void 类型的函数，我们真的会去消费它的返回值吗？既然不会，那么它想返回什么，全凭它乐意就好了。我们还可以用另一种方式来描述这个概念：你可以**将返回值非 void 类型的函数（`() => list.push()`）作为返回值类型为 void 类型（`arr.forEach`）的函数类型参数**。
+
+### 协变和逆变
+协变:协变指的是类型可以按预期的方式进行替换，即可以将一个更具体的类型替换为一个更通用的类型。这通常适用于返回值类型。
+```typescript
+class Animal {
+  name: string;
+}
+
+class Dog extends Animal {
+  breed: string;
+}
+
+function getAnimal(): Animal {
+  return new Dog(); // OK, Dog 是 Animal 的子类型
+}
+```
+
+逆变:逆变指的是类型可以按与预期相反的方式进行替换，即可以将一个更通用的类型替换为一个更具体的类型。这通常适用于函数参数类型。
+```typescript
+type AnimalHandler = (animal: Animal) => void;
+type DogHandler = (dog: Dog) => void;
+
+let handleDog: DogHandler = (dog: Dog) => {
+  console.log(dog.breed);
+};
+
+let handleAnimal: AnimalHandler = (animal: Animal) => {
+  console.log(animal.name);
+};
+
+// handleDog = handleAnimal 是安全的
+handleDog = handleAnimal; // OK, AnimalHandler 可以处理 Dog 类型参数
+```
+
+```
+在 TypeScript 中，函数参数是逆变的，而返回值是协变的。这意味着：
+
+如果你有一个函数类型 `f`，并且它的参数类型是 `A`，返回值类型是 `B`，那么你可以用一个参数类型为 `A` 的子类型 `A'` 的函数来替换 `f`。
+你也可以用一个返回值类型为 `B` 的超类型 `B'` 的函数来替换 `f`。
+```
+
+从类型安全的角度更好理解，Corgi < Dog < Animal，函数的返回值类型应该收敛到能确保它最安全的类型（最精确的类型），即Corgi，才能保证函数正常工作（只有Corgi有`.cute()`方法）。而为了保证函数传入的参数最安全，函数的参数类型应该发散到能确保它最安全的类型（最少都要有相同的基类才行）,即Animal。
+
+###
