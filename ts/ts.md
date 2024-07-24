@@ -2389,3 +2389,57 @@ type OmitByValueType<T extends object,Type> = {
   [K in keyof T as T[K] extends Type ? never : K]: T[K]
 }
 ```
+
+### 模板字符串工具类型进阶
+#### Trim、Includes
+首先来实现Include：**判断传入的字符串字面量类型中是否含有某个字符串**
+```typescript
+type Includes<
+  Str extends string,
+  Search extends string
+> = Str extends `${infer Prefix}${Search}${infer Suffix}` ? true : false;
+```
+在 Include 类型中，我们在 Search 前后声明了两个 infer 插槽，但实际上并不消费 R1 与 R2，而只是判断字符串是否可以被划分为**要搜索的部分 + 其他部分**。
+
+但是此时会存在一个问题
+```typescript
+type A = Includes<'',''> //false
+```
+这种情况不该是false的，所以我们要对这个情况做单独的处理
+```typescript
+type Include<Str extends string, Search extends string> = Str extends ''
+  ? Search extends ''
+    ? true
+    : false
+  : Includes<Str, Search>;
+```  
+
+实现完了Includes，接下来是Trim、TrimStart、TrimEnd：
+```typescript
+type TrimStart<Str extends string> = Str extends ` ${infer R}` ? TrimStart<R> : Str
+
+type TrimEnd<Str extends string> = Str extends `${infer R} ` ? TrimEnd<R> : Str
+
+type Trim<Str extends string> = TrimStart<TrimEnd<Str>>
+```
+
+关于StartWith和EndWith与Includes基本类似
+```typescript
+type StartWith<
+  Str extends string,
+  Search extends string,
+> = Str extends '' 
+    ? Search extends '' 
+      ? true
+      : Str extends `${Search}${infer _R}` ? true : false
+    : Str extends `${Search}${infer _R}` ? true : false
+
+type EndWith<
+  Str extends string,
+  Search extends string,
+> = Str extends '' 
+    ? Search extends '' 
+      ? true
+      : Str extends `${infer _R}${Search}` ? true : false
+    : Str extends `${infer _R}${Search}` ? true : false
+```
