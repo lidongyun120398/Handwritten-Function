@@ -70,3 +70,5 @@ type DeepParital<T extends any> = {
 type B = DeepParital<A>
 
 const b: B = {name:'ldy',otherInfo:{classInfo:{classmate:{xiaowang:{name:'wang'}}}}}
+
+

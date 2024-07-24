@@ -1597,7 +1597,7 @@ type Mutable<T> = {
 ```
 
 + 思考：
-  + 现在的属性修饰是浅层的，如果我想将嵌套在里面的对象类型也进行修饰，需要怎么改进？
+  1. 现在的属性修饰是浅层的，如果我想将嵌套在里面的对象类型也进行修饰，需要怎么改进？
 ```typescript
 type DeepParital<T> = {
   [P in keyof T]? : T[P] extends object 
@@ -1644,7 +1644,7 @@ type DeepMutable<T extends object> = {
 };
 ```
 
-  + 现在的属性修饰是全量的，如果我只想修饰部分属性呢？这里的部分属性，可能是基于传入已知的键名来确定（比如属性a、b），也可能是基于属性类型来确定(比如所有函数类型的值)？
+  2. 现在的属性修饰是全量的，如果我只想修饰部分属性呢？这里的部分属性，可能是基于传入已知的键名来确定（比如属性a、b），也可能是基于属性类型来确定(比如所有函数类型的值)？
 
 #### 结构工具类型
 这一部分的工具类型主要使用**条件类型**以及**映射类型**、**索引类型**。
@@ -1680,8 +1680,8 @@ type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;
 ```
 
 + 思考
-  + Pick 和 Omit 是基于键名的，如果我们需要基于键值类型呢？比如仅对函数类型的属性？
-  + 除了将一个对象结构拆分为多个子结构外，对这些子结构的互斥处理也是结构工具类型需要解决的问题之一。互斥处理指的是，假设你的对象存在三个属性 A、B、C ，其中 A 与 C 互斥，即 A 存在时不允许 C 存在。而 A 与 B 绑定，即 A 存在时 B 也必须存在，A 不存在时 B 也不允许存在。此时应该如何实现？
+  3. Pick 和 Omit 是基于键名的，如果我们需要基于键值类型呢？比如仅对函数类型的属性？
+  4. 除了将一个对象结构拆分为多个子结构外，对这些子结构的互斥处理也是结构工具类型需要解决的问题之一。互斥处理指的是，假设你的对象存在三个属性 A、B、C ，其中 A 与 C 互斥，即 A 存在时不允许 C 存在。而 A 与 B 绑定，即 A 存在时 B 也必须存在，A 不存在时 B 也不允许存在。此时应该如何实现？
 #### 集合工具类型
 内置工具类型中提供了交集与差集的实现：
 ```typescript
@@ -1741,8 +1741,8 @@ type _NonNullable<T> = Difference<T, null | undefined>
 它的本质就是集合 T 相对于 null | undefined 的差集，因此我们可以用之前的差集来进行实现。
 
 + 思考
-  + 目前为止我们的集合类型都停留在一维的层面，即联合类型之间的集合运算。如果现在我们要处理对象类型结构的集合运算呢？
-  + 在处理对象类型结构运算时，可能存在不同的需求，比如合并时，我们可能希望保留原属性或替换原属性，可能希望替换原属性的同时并不追加新的属性进来（即仅使用新的对象类型中的属性值覆盖原本对象类型中的同名属性值），此时要如何灵活地处理这些情况？
+  5. 目前为止我们的集合类型都停留在一维的层面，即联合类型之间的集合运算。如果现在我们要处理对象类型结构的集合运算呢？
+  6. 在处理对象类型结构运算时，可能存在不同的需求，比如合并时，我们可能希望保留原属性或替换原属性，可能希望替换原属性的同时并不追加新的属性进来（即仅使用新的对象类型中的属性值覆盖原本对象类型中的同名属性值），此时要如何灵活地处理这些情况？
 #### 模式匹配工具类型
 这一部分的工具类型主要使用**条件类型**与 **infer 关键字**。
 
@@ -1795,8 +1795,8 @@ type InstanceType<T extends ClassType> = T extends abstract new (
 ```
 
 + 思考
-  + infer 和条件类型的搭配看起来会有奇效，比如在哪些场景？比如随着条件类型的嵌套每个分支会提取不同位置的 infer ？
-  + infer 在某些特殊位置下应该如何处理？比如上面我们写了第一个参数类型，不妨试着来写写最后一个参数类型
+  7. infer 和条件类型的搭配看起来会有奇效，比如在哪些场景？比如随着条件类型的嵌套每个分支会提取不同位置的 infer ？
+  8. infer 在某些特殊位置下应该如何处理？比如上面我们写了第一个参数类型，不妨试着来写写最后一个参数类型
 
 #### infer的约束
 在某些时候，我们可能对 infer 提取的类型值有些要求，比如我只想要数组第一个为字符串的成员，如果第一个成员不是字符串，那我就不要了。
@@ -1816,8 +1816,6 @@ type FirstArrayItemType<T extends any[]> = T extends [infer P extends string, ..
   : never;
 
 ```
-#### 模板字符串工具类型
-
 
 ### void 返回值类型下的特殊情况
 上下文类型同样会推导并约束函数的返回值类型，但存在这么个特殊的情况，当内置函数类型的返回值类型为 void 时
@@ -1887,4 +1885,507 @@ handleDog = handleAnimal; // OK, AnimalHandler 可以处理 Dog 类型参数
 
 从类型安全的角度更好理解，Corgi < Dog < Animal，函数的返回值类型应该收敛到能确保它最安全的类型（最精确的类型），即Corgi，才能保证函数正常工作（只有Corgi有`.cute()`方法）。而为了保证函数传入的参数最安全，函数的参数类型应该发散到能确保它最安全的类型（最少都要有相同的基类才行）,即Animal。
 
-###
+### 内置工具类型进阶
+#### 思考1补充：
+```typescript
+//第一种方法 
+type DeepNonNullable<T extends object> = {
+  [K in keyof T]: T[K] extends object
+    ? DeepNonNullable<T[K]>
+    : NonNullable<T[K]>;
+};
+
+//第二种方法
+type DeepNonNullable<T> = T extends object ? 
+  {
+    [P in keyof T] : DeepNonNullable<T[P]>
+  } 
+  : T extends null | undefined 
+  ? never 
+  : T
+```
+
+就像 Partial 与 Required 的关系一样，DeepNonNullable 也有自己的另一半：DeepNullable：
+```typescript
+export type Nullable<T> = T | null;
+
+export type DeepNullable<T extends object> = {
+  [K in keyof T]: T[K] extends object ? DeepNullable<T[K]> : Nullable<T[K]>;
+};
+```
+
+#### 思考2：
+如果我们要让一个对象的三个已知属性为可选的，那只要把这个对象拆成 A、B 两个对象结构，分别由三个属性和其他属性组成。然后让对象 A 的属性全部变为可选的，和另外一个对象 B 组合起来，不就行了吗？  
+
+拆开来描述一下这句话，看看这里都用到了哪些知识：
++ 拆分对象结构，那不就是内置工具类型一节中讲到的**结构工具类型**，即 Pick 与 Omit？
++ 三个属性的对象全部变为可选，那不就是属性修饰？岂不是可以直接用上面刚学到的**递归属性修饰**？
++ 组合两个对象类型，也就意味着得到一个同时符合这两个对象类型的新结构，那不就是**交叉类型**？
+```typescript
+type MarkPropsAsOptional<
+  T extends object,
+  K extends keyof T = keyof T
+> = Partial<Pick<T,K>> & Omit<T,K>
+```
+这里放入类型去验证的时候会出现跟思考1中类似的情况，我们来写一个工具类型让他能够实现平铺
+```typescript
+type Flatten<T> = {
+  [KeyType in keyof T]: T[KeyType] extends object
+    ? Flatten<T[KeyType]>
+    : T[KeyType];
+} & {};
+```
+其他方法的实现
+```typescript
+export type MarkPropsAsRequired<
+  T extends object,
+  K extends keyof T = keyof T
+> = Flatten<Omit<T, K> & Required<Pick<T, K>>>;
+
+export type MarkPropsAsReadonly<
+  T extends object,
+  K extends keyof T = keyof T
+> = Flatten<Omit<T, K> & Readonly<Pick<T, K>>>;
+
+export type MarkPropsAsMutable<
+  T extends object,
+  K extends keyof T = keyof T
+> = Flatten<Omit<T, K> & Mutable<Pick<T, K>>>;
+
+export type MarkPropsAsNullable<
+  T extends object,
+  K extends keyof T = keyof T
+> = Flatten<Omit<T, K> & DeepNullable<Pick<T, K>>>;
+
+export type MarkPropsAsNonNullable<
+  T extends object,
+  K extends keyof T = keyof T
+> = Flatten<Omit<T, K> & DeepNonNullable<Pick<T, K>>>;
+```
+
+#### 思考3：基于键值的Pick和Omit
+实现方式其实还是类似部分属性修饰中那样，将对象拆分为两个部分，处理完毕再组装。只不过，现在我们无法预先确定要拆分的属性了，而是需要**基于期望的类型去拿到所有此类型的属性名**，如想 Pick 出所有函数类型的值，那就要先拿到所有的函数类型属性名。先来一个 FunctionKeys 工具类型：
+```typescript
+type FuncStruct = (...args: any[]) => any;
+
+type FunctionKeys<T extends object> = {
+  [K in keyof T]: T[K] extends FuncStruct ? K : never;
+}[keyof T];
+```
+
+`{}[keyof T]` 这个写法我们是第一次见，但我们可以拆开来看，先看看前面的 `{ [K in keyof T]: T[K] extends FuncStruct ? K : never; }` 部分，为何在条件类型成立时它返回了键名 K，而非索引类型查询 `T[K]` ？
+```typescript
+type Tmp<T extends object> = {
+  [K in keyof T]: T[K] extends FuncStruct ? K : never;
+};
+
+type Res = Tmp<{
+  foo: () => void;
+  bar: () => number;
+  baz: number;
+}>;
+
+type ResEqual = {
+  foo: 'foo';
+  bar: 'bar';
+  baz: never;
+};
+```
+在 Res（等价于 ResEqual）中，我们获得了一个属性名-属性名字面量类型的结构，对于非函数类型的属性，其值为 never。然后，我们加上 `[keyof T]` 这一索引类型查询 + keyof 操作符的组合：
+```typescript
+type WhatWillWeGet = Res[keyof Res]; // "foo" | "bar"
+```
+我们神奇地获得了所有函数类型的属性名！这又是如何实现的呢？其实就是我们此前学习过的，当索引类型查询中使用了一个联合类型时，它会使用类似分布式条件类型的方式，将这个联合类型的成员依次进行访问，然后再最终组合起来，上面的例子可以这么简化：
+```typescript
+type WhatWillWeGetEqual1 = Res["foo" | "bar" | "baz"];
+type WhatWillWeGetEqual2 = Res["foo"] | Res["bar"] | Res["baz"];
+type WhatWillWeGetEqual3 = "foo" | "bar" | never;
+```
+通过这一方式，我们就能够获取到符合预期类型的属性名了。如果希望抽象“基于键值类型查找属性”名这么个逻辑，我们就需要对 FunctionKeys 的逻辑进行封装，即**将预期类型也作为泛型参数**，由外部传入
+```typescript
+type ExpectedPropKeys<T extends object, ValueType> = {
+  [Key in keyof T]-?: T[Key] extends ValueType ? Key : never;
+}[keyof T];
+
+type FunctionKeys<T extends object> = ExpectedPropKeys<T, FuncStruct>;
+```
+注意，为了避免可选属性对条件类型语句造成干扰，这里我们使用 `-?` 移除了所有可选标记。
+那么把这些用Pick包装一下
+```typescript
+//会通过键值提取到对应的键名
+export type PickByValueType<T extends object, ValueType> = Pick<
+  T,
+  ExpectedPropKeys<T, ValueType>
+>;
+
+type A = PickByValueType<{ foo: string; bar: number }, number>
+
+type A = {
+  bar:number
+}
+```
+OmitByValueType 也是类似的，我们只需要一个和 ExpectedPropKeys 作用相反的工具类型即可，比如来个 FilteredPropKeys，只需要调换条件类型语句结果的两端即可
+```typescript
+type FilteredPropKeys<T extends object, ValueType> = {
+  [Key in keyof T]-?: T[Key] extends ValueType ? never : Key;
+}[keyof T];
+
+export type OmitByValueType<T extends object, ValueType> = Pick<
+  T,
+  FilteredPropKeys<T, ValueType>
+>;
+type A = OmitByValueType<{ foo: string; bar: number }, number>
+
+type A = {
+  foo:string
+}
+```
+那么这里既然ExpectedPropKeys 和 FilteredPropKeys大部分结构相似，我们可不可以封装一下
+```typescript
+type Conditional<Value, Condition, Resolved, Rejected> = Value extends Condition
+  ? Resolved
+  : Rejected;
+
+export type ValueTypeFilter<
+  T extends object,
+  ValueType,
+  Positive extends boolean
+> = {
+  [Key in keyof T]-?: T[Key] extends ValueType
+    ? Conditional<Positive, true, Key, never>
+    : Conditional<Positive, true, never, Key>;
+}[keyof T];
+
+export type PickByValueType<T extends object, ValueType> = Pick<
+  T,
+  ValueTypeFilter<T, ValueType, true>
+>;
+
+export type OmitByValueType<T extends object, ValueType> = Pick<
+  T,
+  ValueTypeFilter<T, ValueType, false>
+>;
+```
+但是这里会出现一些情况，当我们在传入`1 | 2`和`1 | 2 | 3`的时候，因为分布式的关系也会被判为相等,此时我们可以选择在比较的两方加上`[]`来解决分布式的问题，但是这种情况都化为数组以后仍然是会被判为正确，那我们还需要反向的比较一下来解决这个问题，需要确保比较两端完全一致，所以我们StrictConditional最终写成这样
+```typescript
+type StrictConditional<A, B, Resolved, Rejected, Fallback = never> = [A] extends [B]
+  ? [B] extends [A]
+    ? Resolved
+    : Rejected
+  : Fallback;
+
+export type StrictValueTypeFilter<
+  T extends object,
+  ValueType,
+  Positive extends boolean = true
+> = {
+  [Key in keyof T]-?: StrictConditional<
+    ValueType,
+    T[Key],
+    Conditional<Positive,true,Key,never>,
+    Conditional<Positive,true,never,Key>,
+    Conditional<Positive,true,never,Key>
+  >;
+}[keyof T];
+
+export type StrictPickByValueType<T extends object, ValueType> = Pick<
+  T,
+  StrictValueTypeFilter<T, ValueType>
+>;
+
+export type StrictOmitByValueType<T extends object, ValueType> = Pick<
+  T,
+  StrictValueTypeFilter<T, ValueType, false>
+>;
+```
+
+#### 思考4：子结构的互斥处理
+为了表示不能同时拥有，实际上我们应该使用 never 类型来标记一个属性。这里我们直接看完整的实现：
+```typescript
+export type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
+
+export type XOR<T, U> = (Without<T, U> & U) | (Without<U, T> & T);
+
+interface VIP {
+  vipExpires: number;
+}
+
+interface CommonUser {
+  promotionUsed: boolean;
+}
+
+type XORUser = XOR<VIP, CommonUser>;
+//展开
+type XORUser = Flatten<XOR<VIP, CommonUser>>
+```
+我们还可以使用互斥类型实现绑定效果，即要么同时拥有 A、B 属性，要么一个属性都没有：
+```typescript
+type XORStruct = XOR<
+  {},
+  {
+    foo: string;
+    bar: number;
+  }
+>;
+```
+
+#### 思考5，6：
+我们对应地实现对象属性名的版本：
+```typescript
+// 并集
+export type Concurrence<A, B> = A | B;
+
+// 交集
+export type Intersection<A, B> = A extends B ? A : never;
+
+// 差集
+export type Difference<A, B> = A extends B ? never : A;
+
+// 补集
+export type Complement<A, B extends A> = Difference<A, B>;
+
+// 使用更精确的对象类型描述结构
+export type PlainObjectType = Record<string, any>;
+
+// 属性名并集
+export type ObjectKeysConcurrence<
+  T extends PlainObjectType,
+  U extends PlainObjectType
+> = keyof T | keyof U;
+
+// 属性名交集
+export type ObjectKeysIntersection<
+  T extends PlainObjectType,
+  U extends PlainObjectType
+> = Extract<keyof T, keyof U>;
+
+// 属性名差集
+export type ObjectKeysDifference<
+  T extends PlainObjectType,
+  U extends PlainObjectType
+> = Exclude<keyof T, keyof U>;
+
+// 属性名补集
+export type ObjectKeysComplement<
+  T extends U,
+  U extends PlainObjectType
+> = Complement<keyof T, keyof U>;
+```
+对于交集、补集、差集，我们可以直接使用属性名的集合来实现对象层面的版本：
+```typescript
+export type ObjectIntersection<
+  T extends PlainObjectType,
+  U extends PlainObjectType
+> = Pick<T, ObjectKeysIntersection<T, U>>;
+
+export type ObjectDifference<
+  T extends PlainObjectType,
+  U extends PlainObjectType
+> = Pick<T, ObjectKeysDifference<T, U>>;
+
+export type ObjectComplement<T extends U, U extends PlainObjectType> = Pick<
+  T,
+  ObjectKeysComplement<T, U>
+>;
+```
+需要注意的是在 ObjectKeysComplement 与 ObjectComplement 中，T extends U 意味着 T 是 U 的子类型，但在属性组成的集合类型中却相反，**U 的属性联合类型是 T 的属性联合类型的子类型**，因为既然 T 是 U 的子类型，那很显然 T 所拥有的的属性会更多嘛。
+
+并集的实现要处理的情况多一点，对于 T、U 两个对象，假设以 U 的同名属性类型优先，思路会是这样的：
++ T 比 U 多的部分：T 相对于 U 的差集，`ObjectDifference<T, U>`
++ U 比 T 多的部分：U 相对于 T 的差集，`ObjectDifference<U, T>`
++ T 与 U 的交集，由于 U 的优先级更高，在交集处理中将 U 作为原集合， T 作为后传入的集合，`ObjectIntersection<U, T>`
+```typescript
+type Merge<
+  T extends PlainObjectType,
+  U extends PlainObjectType
+  // T 比 U 多的部分，加上 T 与 U 交集的部分(类型不同则以 U 优先级更高，再加上 U 比 T 多的部分即可
+> = ObjectDifference<T, U> & ObjectIntersection<U, T> & ObjectDifference<U, T>;
+```
+如果要保证原对象优先级更高，那么只需要在交集处理中将 T 视为原集合，U 作为后传入的集合：
+```typescript
+type Assign<
+  T extends PlainObjectType,
+  U extends PlainObjectType
+  // T 比 U 多的部分，加上 T 与 U 交集的部分(类型不同则以 T 优先级更高，再加上 U 比 T 多的部分即可
+> = ObjectDifference<T, U> & ObjectIntersection<T, U> & ObjectDifference<U, T>;
+```
+除了简单粗暴地完全合并以外，我们还可以实现不完全的并集，即使用对象 U 的属性类型覆盖对象 T 中的同名属性类型，但不会将 U 独特的部分合并过来：
+```typescript
+type Override<
+  T extends PlainObjectType,
+  U extends PlainObjectType
+  // T 比 U 多的部分，加上 T 与 U 交集的部分(类型不同则以 U 优先级更高（逆并集）)
+> = ObjectDifference<T, U> & ObjectIntersection<U, T>;
+```
+
+#### 思考7，8：
+```typescript
+type FunctionType = (...args: any) => any;
+
+//提取第一个参数类型
+type FirstParameter<T extends FunctionType> = T extends (
+  arg: infer P,
+  ...args: any
+) => any
+  ? P
+  : never;
+
+//提取最后一个参数类型
+type LastParameter<T extends FunctionType> = T extends (arg: infer P) => any
+  ? P
+  : T extends (...args: infer R) => any
+  ? R extends [...any, infer Q]
+    ? Q
+    : never
+  : never;
+```
+*Awaited*实现
+```typescript
+type Awaited<T> = T extends null | undefined
+  ? T 
+  : T extends object & { then(onfulfilled: infer F): any }
+  ? F extends (value: infer V, ...args: any) => any 
+    ? Awaited<V>
+    : never
+  : T;
+```
+首先你会发现，在这里 Awaited 并非通过 `Promise<infer V>` 来提取函数类型，而是通过 `Promise.then` 方法提取，首先提取到 then 方法中的函数类型，再通过这个函数类型的首个参数来提取出实际的值。
+
+更严谨地来说，PromiseValue 和 Awaited 并不应该放在一起比较，前者就只想提取 `Promise<void>` 这样结构的内部类型，后者则像在类型的层面执行了 `await Promise.then()` 之后的返回值类型。同样的，这里也用到了 infer 伴随结构转化的例子。
+
+### 模板字符串类型 
+#### 模板字符串的基础使用
+```typescript
+type World = 'World';
+
+// "Hello World"
+type Greeting = `Hello ${World}`;
+```
+这里的 Greeting 就是一个模板字符串类型，它内部通过与 JavaScript 中模板字符串相同的语法（${}），使用了另一个类型别名 World，其最终的类型就是**将两个字符串类型值组装在一起返回**。
+
+除了使用确定的类型别名以外，模板字符串类型当然也支持通过泛型参数传入。需要注意的是，并不是所有值都能被作为模板插槽,目前有效的类型只有 `string | number | boolean | null | undefined | bigint` 这几个：
+```typescript
+type Greet<T extends string | number | boolean | null | undefined | bigint> = `Hello ${T}`;
+
+type Greet1 = Greet<"linbudu">; // "Hello linbudu"
+type Greet2 = Greet<599>; // "Hello 599"
+type Greet3 = Greet<true>; // "Hello true"
+type Greet4 = Greet<null>; // "Hello null"
+type Greet5 = Greet<undefined>; // "Hello undefined"
+type Greet6 = Greet<0x1fffffffffffff>; // "Hello 9007199254740991"
+```
+另外也可以为该插槽传入一个类型而非类型别名:
+```typescript
+type Greeting = `Hello ${string}`;
+```
+在这种情况下，Greeting 类型并不会变成 `Hello string`，而是保持原样。这也意味着它并没有实际意义，此时就是一个无法改变的模板字符串类型，但所有 Hello 开头的字面量类型都会被视为 `Hello ${string}` 的子类型，如 `Hello ldy`、`Hello TypeScript` 。
+
+模板字符串最大的特点就是**自动分发的特性**来实现简便而又严谨的声明：
+```typescript
+type Brand = 'iphone' | 'xiaomi' | 'honor';
+type Memory = '16G' | '64G';
+type ItemType = 'official' | 'second-hand';
+
+type SKU = `${Brand}-${Memory}-${ItemType}`;
+```
+通过这种方式，我们不仅不需要再手动声明一大堆工具类型，同时也获得了逻辑层面的保障：它会忠实地将**所有插槽中的联合类型与剩余的字符串部分进行依次的排列组合**。通过泛型传入联合类型时也会有同样的分发过程:
+```typescript
+type SizeRecord<Size extends string> = `${Size}-Record`;
+
+type Size = 'Small' | 'Middle' | 'Large';
+
+// "Small-Record" | "Middle-Record" | "Huge-Record"
+type UnionSizeRecord = SizeRecord<Size>;
+```
+
+#### 模板字符串类型的类型表现
+实际上，由于模板字符串类型最终的产物还是字符串字面量类型，因此只要插槽位置的类型匹配，字符串字面量类型就可以被认为是模板字符串类型的子类型，比如我们上面的版本号：
+```typescript
+declare let v1: `${number}.${number}.${number}`;
+declare let v2: '1.2.4';
+
+v1 = v2;
+```
+如果反过来，`v2 = v1` 很显然是不成立的，因为 v1 还包含了 `100.0.0` 等等情况。同样的，模板字符串类型和模板字符串也拥有着紧密的关联：
+```typescript
+const greet = (to: string): `Hello ${string}` => {
+  return `Hello ${to}`;
+};
+```
+
+#### 结合索引类型与映射类型
+基于 **keyof + 模板字符串类型**，我们可以基于已有的对象类型来实现精确到字面量的类型推导：
+```typescript
+interface Foo {
+  name: string;
+  age: number;
+  job: Job;
+}
+
+type ChangeListener = {
+  on: (change: `${keyof Foo}Changed`) => void;
+};
+
+declare let listener: ChangeListener;
+
+// 提示并约束为 "nameChanged" | "ageChanged" | "jobChanged"
+listener.on('');
+```
+为了与映射类型实现更好的协作，TS 在引入模板字符串类型时支持了一个叫做 **重映射（Remapping）** 的新语法，基于模板字符串类型与重映射，我们可以实现一个此前无法想象的新功能：**在映射键名时基于原键名做修改**。
+```typescript
+type CopyWithRename<T extends object> = {
+  [K in keyof T as `modified_${string & K}`]: T[K];
+};
+
+interface Foo {
+  name: string;
+  age: number;
+}
+
+// {
+//   modified_name: string;
+//   modified_age: number;
+// }
+type CopiedFoo = CopyWithRename<Foo>;
+```
+这里我们其实就是通过 `as` 语法，将映射的键名作为变量，映射到一个新的字符串类型。需要注意的是，由于对象的合法键名类型包括了 symbol，而模板字符串类型插槽中并不支持 symbol 类型。因此我们使用 `string & K` 来确保了最终交由模板插槽的值，一定会是合法的 string 类型。
+
+#### 专用工具类型
+这些工具类型专用于字符串字面量类型，包括 **Uppercase、Lowercase、Capitalize 与 Uncapitalize**，看名字就能知道它们的作用：字符串大写、字符串小写、首字母大写与首字母小写
+```typescript
+type A = `${Uppercase<'ldy'>}`
+
+type B = `${Lowercase<'LDY'>}`
+
+type C = `${Capitalize<'ldy'>}`
+
+type D = `${Uncapitalize<'LDY'>}`
+```
+
+#### 模板字符串类型与模式匹配
+模板插槽不仅可以声明一个占位的坑，也可以声明一个要提取的部分，我们来看一个例子：
+```typescript
+type ReverseName<Str extends string> =
+  Str extends `${infer First} ${infer Last}` ? `${Capitalize<Last>} ${First}` : Str;
+
+type ReversedTomHardy = ReverseName<'Tom hardy'>; // "Hardy Tom"
+```
+注意，这里的空格也需要严格遵循，因为**它也是一个字面量类型的一部分**。对于符合这样约束的类型，我们使用**模板插槽 + infer** 关键字提取了其空格旁的两个部分（即名与姓）。然后在条件类型中，我们将 infer 提取出来的值，再次使用模板插槽注入到了新的字符串类型中。
+
+如果传入的字符串字面量类型中有多个空格呢？这种情况下，模式匹配将只会匹配首个空格，即 `"A B C"` 会被匹配为 `"A"` 与 `"B C"` 这样的两个结构
+```typescript
+type ReversedRes1 = ReverseName<'Lll ddd yyy'>; // "Ddd yyy Lll"
+``` 
+
+#### 基于重映射的 PickByValueType
+```typescript
+type PickByValueType<T extends object, Type> = {
+  [K in keyof T as T[K] extends Type ? K : never]: T[K]
+}
+```
+同时OmitByValueType也可以重写
+```typescript
+type OmitByValueType<T extends object,Type> = {
+  [K in keyof T as T[K] extends Type ? never : K]: T[K]
+}
+```
