@@ -2443,3 +2443,526 @@ type EndWith<
       : Str extends `${infer _R}${Search}` ? true : false
     : Str extends `${infer _R}${Search}` ? true : false
 ```
+
+#### Replace、Split、Join
+##### Replace
+```typescript
+type Replace<
+  Str extends string,
+  Search extends string,
+  Replacement extends string
+> = Str extends `${infer Prefix}${Search}${infer Suffix}`
+    ? `${Prefix}${Replacement}${Suffix}`
+    : Str
+
+type ReplaceAll<
+  Str extends string,
+  Search extends string,
+  Replacement extends string
+> = Str extends `${infer Prefix}${Search}${infer Suffix}`
+    ? ReplaceAll<`${Prefix}${Replacement}${Suffix}`,Search,Replacement>
+    : Str
+```
+因为结构相似，也可以将他们俩放在一起通过选项控制是否全量替换
+```typescript
+export type Replace<
+  Input extends string,
+  Search extends string,
+  Replacement extends string,
+  ShouldReplaceAll extends boolean = false
+> = Input extends `${infer Head}${Search}${infer Tail}`
+  ? ShouldReplaceAll extends true
+    ? Replace<
+        `${Head}${Replacement}${Tail}`,
+        Search,
+        Replacement,
+        ShouldReplaceAll
+      >
+    : `${Head}${Replacement}${Tail}`
+  : Input;
+```
+
+##### Split:将字符串按分隔符拆分成一个数组
+```typescript
+type Split<
+  Str extends string,
+  Delimiter extends string 
+> = Str extends `${infer Head}${Delimiter}${infer Tail}`
+  ? [Head, ...Split<Tail, Delimiter>]
+  : Str extends Delimiter
+    ? []
+    : [Str];
+```
+在实际情况中，我们的字符串可能包含了多种可能的分隔符，即这里的 Delimiter 可以是一个联合类型 `"_" | "-" | " "` 。在这种情况下，模板字符串中的模式匹配也能够生效，它会使用这里的多个分隔符依次进行判断，并在判断到其中一种就立刻成立：
+```typescript
+type Delimiters = '-' | '_' | ' ';
+
+// ["l", "d", "y"]
+type SplitRes4 = Split<'l_d_y', Delimiters>;
+```
+但需要注意的是，我们并不能在一个字符串中混用多种分隔符，在这种情况下由于联合类型在插槽中的排列组合特性，我们会得到一个诡异的结果.
+```typescript
+// ["l" | "l_d", "y"] | ["l" | "l_d", "d", "y"]
+type SplitRes5 = Split<'l_d-y', Delimiters>;
+```
+
+另外，基于 Split 类型我们还可以获取字符串长度
+```typescript
+export type StrLength<T extends string> = Split<Trim<T>, ''>['length'];
+```
+
+##### Join:将一个数组中的所有字符串按照分隔符组装成一个字符串
+```typescript
+export type Join<
+  List extends Array<string | number>,
+  Delimiter extends string
+> = List extends []
+  ? '' 
+  :List extends [string | number]
+  ? `${List[0]}`
+  : List extends [string | number, ...infer Rest]
+  ? // @ts-expect-error
+    `${List[0]}${Delimiter}${Join<Rest, Delimiter>}`
+  : string;
+```
+这里的 Rest 类型无法被正确地推导，因此使用了 // @ts-expect-error 来忽略错误。
+
+```
+Join需要额外的去考虑两个边界情况:
+1. 递归到最后首先如果不处理空数组会返回一个string,但是这个string我们本来是用来处理Join拼接不成字符串返回一个string类型的情况，所以需要额外判断空数组 
+`List extends []`
+2. 当处理完了空数组仍然会在拼接的字符串后面添加一个Delimiter,我们需要处理当递归的数组只剩一项时的情况
+`List extends [string | number]`
+```
+
+
+#### CamelCase
+首先来实现一下从其他方式转成CamelCase的格式
+```typescript
+import { expectType } from 'tsd'
+
+type SnakeCase2CamelCase<S extends string> = S extends `${infer R}_${infer Rest}` ?  `${R}${SnakeCase2CamelCase<Capitalize<Rest>>}` : S
+
+expectType<SnakeCase2CamelCase<'l_d_y'>>('lDY')
+
+type KebabCase2CamelCase<S extends string> = S extends `${infer R}-${infer Rest}` ?  `${R}${KebabCase2CamelCase<Capitalize<Rest>>}` : S
+
+expectType<KebabCase2CamelCase<'l-d-y'>>('lDY')
+```
+除了分隔符不一样，其他的都是一样的，所以我们再次封装
+```typescript
+type DelimiterCase2CamelCase<
+  S extends string,
+  Delimiter extends string
+> = S extends `${infer R}${Delimiter}${infer Rest}` 
+    ? `${R}${DelimiterCase2CamelCase<Capitalize<Rest>,Delimiter>}` 
+    : S
+```
+
+最终版的CamelCase
+```typescript
+export type PlainObjectType = Record<string, any>;
+
+export type WordSeparators = '-' | '_' | ' ';
+
+export type Split<
+  S extends string,
+  Delimiter extends string
+> = S extends `${infer Head}${Delimiter}${infer Tail}`
+  ? [Head, ...Split<Tail, Delimiter>]
+  : S extends Delimiter
+  ? []
+  : [S];
+
+type CapitalizeStringArray<Words extends readonly any[], Prev> = Words extends [
+  `${infer First}`,
+  ...infer Rest
+]
+  ? First extends undefined
+    ? ''
+    : First extends ''
+    ? CapitalizeStringArray<Rest, Prev>
+    : `${Prev extends '' ? First : Capitalize<First>}${CapitalizeStringArray<
+        Rest,
+        First
+      >}`
+  : '';
+
+type CamelCaseStringArray<Words extends readonly string[]> = Words extends [
+  `${infer First}`,
+  ...infer Rest
+]
+  ? Uncapitalize<`${First}${CapitalizeStringArray<Rest, First>}`>
+  : never;
+
+export type CamelCase<K extends string> = CamelCaseStringArray<
+  Split<K extends Uppercase<K> ? Lowercase<K> : K, WordSeparators>
+>;
+```
+
+### 工程层面的类型能力
+#### 类型检查指令
+`ts-ignore` 应该是使用最为广泛的一个类型指令了，它的作用就是直接禁用掉对下一行代码的类型检查:
+```typescript
+// @ts-ignore
+const name: string = 599;
+```
+基本上所有的类型报错都可以通过这个指令来解决，但由于它本质是上 ignore 而不是 disable，也就意味着如果下一行代码并没有问题，那使用 ignore 反而就是一个错误了。因此 TypeScript 随后又引入了一个更严格版本的 ignore，即 `ts-expect-error`，它只有在**下一行代码真的存在错误时**才能被使用，否则它会给出一个错误：
+```typescript
+// @ts-expect-error
+const name: string = 599;
+
+// @ts-expect-error 错误使用此指令，报错
+const age: number = 599;
+```
+在这里第二个 `expect-error` 指令会给出一个报错：**无意义的 expect-error 指令**。
+
+那这两个功能相同的指令应该如何取舍？我的建议是**在所有地方都不要使用 ts-ignore**，直接把这个指令打入冷宫封存起来。原因在上面我们也说了，对于这类 ignore 指令，本来就应当确保**下一行真的存在错误时**才去使用。
+
+ `ts-nocheck` ，你可以把它理解为一个作用于整个文件的 ignore 指令，使用了 ts-nocheck 指令的 TS 文件将不再接受类型检查：
+ ```typescript
+ // @ts-nocheck 以下代码均不会抛出错误
+const name: string = 599;
+const age: number = 'linbudu';
+ ```
+
+ 但我们知道 JavaScript 是弱类型语言，表现之一即是变量可以被赋值为与初始值类型不一致的值：
+ ```typescript
+ let myAge = 18;
+myAge = "90"; // 与初始值类型不同
+
+/** @type {string} */
+let myName;
+myName = 599; // 与 JSDoc 标注类型不同
+ ```
+ 我们的赋值操作在类型层面显然是不成立的，但我们是在 JavaScript 文件中，因此这里并不会有类型报错。如果希望在 JS 文件中也能享受到类型检查，此时 `ts-check` 指令就可以登场了：
+ 这里我们的 ts-check 指令为 JavaScript 文件也带来了类型检查，而我们同时还可以使用 ts-expect-error 指令来忽略掉单行的代码检查：
+```typescript
+// @ts-check
+/** @type {string} */
+// @ts-expect-error
+const myName = 599; // OK
+
+let myAge = 18;
+// @ts-expect-error
+myAge = '200'; // OK
+```
+
+而 `ts-nocheck` 在 JS 文件中的作用和 TS 文件其实也一致，即禁用掉对当前文件的检查。如果我们希望开启对所有 JavaScript 文件的检查，只是忽略掉其中少数呢？此时我们在 TSConfig 中启用 `checkJs` 配置，来开启**对所有包含的 JS 文件的类型检查**，然后使用 `ts-nocheck` 来忽略掉其中少数的 JS 文件
+
+#### 类型声明
+在此前我们其实就已经接触到了类型声明，它实际上就是 declare 语法：
+```typescript
+declare var f1: () => void;
+
+declare interface Foo {
+  prop: string;
+}
+
+declare function foo(input: Foo): Foo;
+
+declare class Foo {}
+```
+我们可以直接访问这些声明：
+```typescript
+declare let otherProp: Foo['prop'];
+```
+但不能为这些声明变量赋值：
+```typescript
+// × 不允许在环境上下文中使用初始值
+declare let result = foo();
+
+// √ Foo
+declare let result: ReturnType<typeof foo>;
+```
+这些类型声明就像我们在 TypeScript 中的类型标注一样，会存放着特定的类型信息，同时由于它们并不具有实际逻辑，我们可以很方便地使用类型声明来进行类型兼容性的比较、工具类型的声明与测试等等。
+
+除了手动书写这些声明文件，更常见的情况是你的 TypeScript 代码在编译后生成声明文件：
+```typescript
+// 源代码
+const handler = (input: string): boolean => {
+  return input.length > 5;
+}
+
+interface Foo {
+  name: string;
+  age: number;
+}
+
+const foo: Foo = {
+  name: "ldy",
+  age: 18
+}
+
+class FooCls {
+  prop!: string;
+}
+```
+这段代码在编译后会生成一个 `.js` 文件和一个 `.d.ts` 文件，而后者即是类型声明文件：
+```typescript
+// 生成的类型定义
+declare const handler: (input: string) => boolean;
+
+interface Foo {
+    name: string;
+    age: number;
+}
+
+declare const foo: Foo;
+
+declare class FooCls {
+    prop: string;
+}
+```
+这样一来，如果别的文件或是别的项目导入了这段代码，它们就能够从这些类型声明获得对应部分的类型，这也是类型声明的核心作用：**将类型独立于 `.js` 文件进行存储**。别人在使用你的代码时，就能够获得这些额外的类型信息。同时，如果你在使用别人没有携带类型声明的 `.js` 文件，也可以通过类型声明进行类型补全，我们在后面还会了解更多。
+
+类型声明的核心能力：**通过额外的类型声明文件，在核心代码文件以外去提供对类型的进一步补全**。类型声明文件，即 `.d.ts` 结尾的文件，它会自动地被 TS 加载到环境中，实现对应部分代码的类型补全。
+
+声明文件中并不包含实际的代码逻辑，它做的事只有一件：**为 TypeScript 类型检查与推导提供额外的类型信息**，而使用的语法仍然是 TypeScript 的 declare 关键字
+
+假设我们要导入一个无类型的npm包
+```typescript
+import foo from 'pkg';
+
+const res = foo.handler();
+
+declare module 'pkg' {
+  const handler: () => boolean;
+}
+```
+现在我们的 res 就具有了 boolean 类型！`declare module 'pkg'` 会为默认导入 foo 添加一个具有 handler 的类型，虽然这里的`pkg` 根本不存在。
+
+##### DefinitelyTyped
+简单来说，`@types/` 开头的这一类 npm 包均属于 DefinitelyTyped ，它是 TypeScript 维护的，专用于为社区存在的**无类型定义的 JavaScript 库**添加类型支持，常见的有 `@types/react` `@types/lodash` 等等。通过 DefinitelyTyped 来提供类型定义的包常见的有几种情况，如 Lodash 这样的库仍然有大量 JavaScript 项目使用，将类型定义内置在里面不一定是所有人都需要的，反而会影响包的体积。还有像 React 这种不是用纯 JavaScript / TypeScript 书写的库，需要自己来手写类型声明（React 是用 Flow 写的，这是一门同样为 JavaScript 添加类型的语言，或者说语法）。
+
+举例来说，只要你安装了 `@types/react`，TypeScript 会自动将其加载到环境中（实际上所有 `@types/` 下的包都会自动被加载），并作为 react 模块内部 API 的声明。但这些类型定义并不一定都是通过 `declare module`，我们下面介绍的命名空间 namespace 其实也可以实现一样的能力。
+```typescript
+// @types/node
+declare module 'fs' { 
+    export function readFileSync(/** 省略 */): Buffer;
+}
+
+// @types/react
+declare namespace React {
+    function useState<S>(): [S, Dispatch<SetStateAction<S>>];
+}
+```
+
+##### 扩展已有的类型定义
+对全局变量的声明，还是以 window 为例，实际上我们如果 Ctrl + 点击代码中的 window，会发现它已经有类型声明了：
+```typescript
+declare var window: Window & typeof globalThis;
+
+interface Window {
+  // ...
+}
+```
+这行代码来自于 `lib.dom.d.ts` 文件，它定义了对浏览器文档对象模型的类型声明，这就是 TypeScript 提供的内置类型，也是“出厂自带”的类型检查能力的依据。类似的，还有内置的 `lib.es2021.d.ts` 这种文件定义了对 ECMAScript 每个版本的类型声明新增或改动等等。
+
+而如果我们就是想将它显式的添加到已有的 `Window` 接口中呢？在接口一节中我们其实已经了解到，如果你有多个同名接口，**那么这些接口实际上是会被合并的**，这一特性在类型声明中也是如此。因此，我们再声明一个 Window 接口即可：
+```typescript
+interface Window {
+  userTracker: (...args: any[]) => Promise<void>;
+}
+
+window.userTracker("click!")
+```
+类似的，我们也可以扩展来自 @types/ 包的类型定义：
+```typescript
+declare module 'fs' {
+  export function bump(): void;
+}
+
+import { bump } from 'fs';
+```
+总结一下这两个部分，TypeScript 通过 DefinitelyTyped ，也就是 `@types/` 系列的 npm 包来为无类型定义的 JavaScript npm 包提供类型支持，这些类型定义 的 npm 包内部其实就是数个 `.d.ts` 这样的声明文件。
+
+而这些声明文件主要通过 declare / namespace 的语法进行类型的描述，我们可以通过项目内额外的声明文件，来实现为非代码文件的导入，或者是全局变量添加上类型声明。
+
+#### 三斜线指令
+三斜线指令就像是声明文件中的导入语句一样，它的作用就是**声明当前的文件依赖的其他类型声明**。而这里的“其他类型声明”包括了 TS 内置类型声明（`lib.d.ts`）、三方库的类型声明以及你自己提供的类型声明文件等。  
+
+三斜线指令本质上就是一个自闭合的 XML 标签，其语法大致如下：
+```typescript
+/// <reference path="./other.d.ts" />
+/// <reference types="node" />
+/// <reference lib="dom" />
+```
+**需要注意的是，三斜线指令必须被放置在文件的顶部才能生效。**
+
+这里的三条指令作用其实都是声明当前文件依赖的外部类型声明，只不过使用的方式不同：分别使用了 path、types、lib 这三个不同属性，我们来依次解析。
+
+使用 path 的 reference 指令，其 path 属性的值为一个相对路径，指向你项目内的其他声明文件。而在编译时，TS 会沿着 path 指定的路径不断深入寻找，最深的那个没有其他依赖的声明文件会被最先加载。
+```typescript
+// @types/node 中的示例
+/// <reference path="fs.d.ts" />
+```
+使用 types 的 reference 指令，其 types 的值是一个包名，也就是你想引入的 `@types/` 声明，如上面的例子中我们实际上是在声明当前文件对 `@types/node` 的依赖。而如果你的代码文件（`.ts`）中声明了对某一个包的类型导入，那么在编译产生的声明文件（`.d.ts`）中会自动包含引用它的指令。
+```typescript
+/// <reference types="node" />
+```
+使用 lib 的 reference 指令类似于 types，只不过这里 lib 导入的是 TypeScript 内置的类型声明，如下面的例子我们声明了对 `lib.dom.d.ts` 的依赖：
+```typescirpt
+// vite/client.d.ts
+/// <reference lib="dom" />
+```
+而如果我们使用 `/// <reference lib="esnext.promise" />`，那么将依赖的就是 `lib.esnext.promise.d.ts` 文件。
+
+这三种指令的目的都是引入当前文件所依赖的其他类型声明，只不过适用场景不同而已。
+
+#### 命名空间
+假设一个场景，我们的项目里需要接入多个平台的支付 SDK，最开始只有微信支付和支付宝：
+```typescript
+class WeChatPaySDK {}
+
+class ALiPaySDK {}
+```
+然后又多了美团支付、虚拟货币支付（比如 Q 币）、信用卡支付等等：
+```typescript
+class WeChatPaySDK {}
+
+class ALiPaySDK {}
+
+class MeiTuanPaySDK {}
+
+class CreditCardPaySDK {}
+
+class QQCoinPaySDK {}
+```
+随着业务的不断发展，项目中可能需要引入越来越多的支付 SDK，甚至还有比特币和以太坊，此时将这些所有的支付都放在一个文件内未免过于杂乱了。这些支付方式其实大致可以分成两种：现实货币与虚拟货币。此时我们就可以使用命名空间来区分这两类 SDK：
+```typescript
+export namespace RealCurrency {
+  export class WeChatPaySDK {}
+
+  export class ALiPaySDK {}
+
+  export class MeiTuanPaySDK {}
+
+  export class CreditCardPaySDK {}
+}
+
+export namespace VirtualCurrency {
+  export class QQCoinPaySDK {}
+
+  export class BitCoinPaySDK {}
+
+  export class ETHPaySDK {}
+}
+```
+```
+注意，这里的代码是在 .ts 文件中的，此时它是具有实际逻辑意义的，也不能和类型混作一谈。
+```
+
+而命名空间的使用类似于枚举：
+```typescript
+const weChatPaySDK = new RealCurrency.WeChatPaySDK();
+```
+唯一需要注意的是，命名空间内部实际上就像是一个独立的代码文件，因此其中的变量需要导出以后，才能通过 `RealCurrency.WeChatPaySDK` 这样的形式访问。
+
+命名空间的内部还可以再嵌套命名空间，比如在虚拟货币中再新增区块链货币一类，此时嵌套的命名空间也需要被导出：
+```typescript
+export namespace VirtualCurrency {
+  export class QQCoinPaySDK {}
+
+  export namespace BlockChainCurrency {
+    export class BitCoinPaySDK {}
+
+    export class ETHPaySDK {}
+  }
+}
+
+const ethPaySDK = new VirtualCurrency.BlockChainCurrency.ETHPaySDK();
+```
+类似于类型声明中的同名接口合并，命名空间也可以进行合并，但需要通过三斜线指令来声明导入。
+```typescript
+// animal.ts
+namespace Animal {
+  export namespace ProtectedAnimals {}
+}
+
+// dog.ts
+/// <reference path="animal.ts" />
+namespace Animal {
+  export namespace Dog {
+    export function bark() {}
+  }
+}
+
+// corgi.ts
+/// <reference path="dog.ts" />
+namespace Animal {
+  export namespace Dog {
+    export namespace Corgi {
+      export function corgiBark() {}
+    }
+  }
+}
+```
+实际使用时需要导入全部的依赖文件：
+```typescript
+/// <reference path="animal.ts" />
+/// <reference path="dog.ts" />
+/// <reference path="corgi.ts" />
+
+Animal.Dog.Corgi.corgiBark();
+```
+除了在 `.ts` 文件中使用以外，命名空间也可以在声明文件中使用，即 `declare namespace`：
+```typescript
+declare namespace Animal {
+  export interface Dog {}
+
+  export interface Cat {}
+}
+
+declare let dog: Animal.Dog;
+declare let cat: Animal.Cat;
+```
+但如果你在 `@types/` 系列的包下，想要通过 namespace 进行模块的声明，还需要注意将其导出，然后才会加载到对应的模块下。以 `@types/react` 为例：
+```typescript
+export = React;
+export as namespace React;
+declare namespace React {
+  // 省略了不必要的类型标注
+  function useState<S>(initialState): [];
+}
+```
+首先我们声明了一个命名空间 React，然后使用 `export = React` 将它导出了，这样我们就能够在从 react 中导入方法时，获得命名空间内部的类型声明，如 useState。
+
+从这一个角度来看，`declare namespace` 其实就类似于普通的 `declare` 语法，只是内部的类型我们不再需要使用 `declare` 关键字（比如我们直接在 namespace 内部 `function useState(): []` 即可）。
+
+而还有一行 `export as namespace React` ，它的作用是在启用了 `--allowUmdGlobalAccess` 配置的情况下，允许将这个模块作为全局变量使用（也就是不导入直接使用），这一特性同样也适用于通过 CDN 资源导入模块时的变量类型声明。
+
+除了这两处 namespace 使用，React 中还利用 namespace 合并的特性，在全局的命名空间中注入了一些类型：
+```typescript
+declare global {
+  namespace JSX {
+    interface Element extends React.ReactElement<any, any> { }
+  }
+}
+```
+这也是为什么我们可以在全局使用 JSX.Element 作为类型标注。
+
+除了类型声明中的导入——三斜线指令，以及类型声明中的模块——命名空间以外，TypeScript 还允许你将这些类型去导入到代码文件中。
+
+#### 仅类型导入
+在 TypeScript 中，当我们导入一个类型时其实并不需要额外的操作，和导入一个实际值是完全一样的：
+```typescript
+// foo.ts
+export const Foo = () => {};
+
+export type FooType = any;
+
+// index.ts
+import { Foo, FooType } from "./foo";
+```
+虽然类型导入和值导入存在于同一条导入语句中，在编译后的 JS 代码里还是只会有值导入存在，同时在编译的过程中，值与类型所在的内存空间也是分开的。
+
+在这里我们只能通过名称来区分值和类型，但为每一个类型都加一个 Type 后缀也太奇怪了。实际上，我们可以更好地区分值导入和类型导入，只需要通过 `import type` 语法即可：
+```typescript
+import { Foo } from "./foo";
+import type { FooType } from "./foo";
+```
+这样会造成导入语句数量激增，如果你想同时保持较少的导入语句数量又想区分值和类型导入，也可以使用同一导入语句内的方式（需要 4.6 版本以后才支持）：
+```typescript
+import { Foo, type FooType } from "./foo";
+```
