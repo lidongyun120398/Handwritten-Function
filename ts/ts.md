@@ -2966,3 +2966,158 @@ import type { FooType } from "./foo";
 ```typescript
 import { Foo, type FooType } from "./foo";
 ```
+
+### 在React中使用TS
+
+### TypeScript中的ECMAScript语法
+#### 可选链Optional Chainning
+```typescript
+const inner = obj?.data?.innerProperty;
+```
+可选链也更符合我们的预期：它会在短路时返回一个 undefined。可选链不仅能应用在属性访问，也可以用在计算属性访问以及方法调用上：
+```typescript
+obj?.[expr];
+obj?.[++a];
+// 对应到 obj.func && obj.func()
+obj?.func();
+```
+在所有情况下，如果 ?. 的左侧发生了短路，那么就会直接停止后续操作，比如不会去运行并计算表达式 expr 以及 ++a 。
+
+#### 空值合并 Nullish Coalescing
+如果说可选链是为了取代逻辑与（&&），那么空值合并就是为了取代逻辑或（||）。而逻辑或的主要使用场景之一就是提供默认值，如：
+```typescript
+const foo = someValue || fallbackValue;
+```
+逻辑或会在 `||` 左边被判断为 false 时，执行右边的逻辑，在这里即是赋值行为。看起来一切好像都很美好，但别忘了，由于 JavaScript 中无处不在的隐式转换，如果 `||` 左边是 `""/ 0 / false`，都会被视为 false（false 虽然是 false，但它也是个值！），而我们希望的是**仅在左边为 undefined 或 null 时，才去应用默认值**。
+
+大部分情况下我们可以直接使用 ?? 代替 ||：
+```typescript
+const foo = someValue ?? fallbackValue
+```
+空值合并就如它的名字一样，只会对真正意义上的空值（null 与 undefined）进行处理。
+
+#### 逻辑赋值 Logical Assignment
+实际上，逻辑赋值是在复合赋值的基础上演进而来（或者说关系一致）的，都是将一个操作符和赋值符号结合在一起。比如我们最常见的复合赋值：
+```typescript
+a = a + b;
+a += b;
+
+a = a - b;
+a -= b;
+
+a = a * b;
+a *= b;
+```
+复合赋值其实就是先执行操作，再将操作结果赋值给左边的变量。如 a += b 就是执行 a + b，然后将结果赋值给 a。
+
+而逻辑赋值也是一样：
+```typescript
+a = a || b;
+a ||= b;
+
+a = a && b;
+a &&= b;
+```
+类比一下，逻辑赋值就是先执行逻辑操作，然后将结果赋值给左边的变量。这一语法其实在实际开发中有奇效，如 a ||= b 其实可以替代掉以下这段代码：
+```typescript
+if(!a) a = b;
+
+// 或者
+a = a ? a : b;
+```
+这个时候为了区分逻辑赋值，我们可以称其为**短路赋值。**短路赋值在一些需要懒初始化的场景中非常好用，比如：
+```typescript
+let arr: string[];
+
+(arr ??= []).push("ldy");
+
+// 等价于以下这段
+arr = arr ?? []; // 假设 arr 有可能在多处被初始化
+arr.push("ldy");
+```
+
+
+### 装饰器语法
+首先我们需要明确的是，**装饰器的本质其实就是一个函数**，只不过它的入参是提前确定好的。同时，TypeScript 中的装饰器目前同样**只能在类以及类成员上使用。**
+装饰器通过 `@` 语法来使用：
+```typescript
+function Deco() { }
+
+@Deco
+class Foo {}
+```
+这样的装饰器只能起到固定的功能，因为它并不能动态接受入参。而我们实际上使用更多的是 Decorator Factory 的形式，即让 Deco 返回实际作为装饰器的函数，而不是本身作为装饰器。
+在这种情况下，程序执行时会先执行 Deco() ，再用内部返回的函数作为装饰器的实际逻辑。这样，我们就可以通过入参来灵活地调整装饰器的作用。
+
+TypeScript 中的装饰器可以分为**类装饰器、方法装饰器、访问符装饰器、属性装饰器以及参数装饰器**五种，最常见的主要还是类装饰器、方法装饰器以及属性装饰器。
+
+#### 类装饰器
+类装饰器是直接作用在类上的装饰器，它在执行时的入参只有一个，那就是这个类本身（而不是类的原型对象）。因此，我们可以通过类装饰器来覆盖类的属性与方法，如果你在类装饰器中返回一个新的类，它甚至可以篡改掉整个类的实现。
+```typescript
+@AddProperty('ldy')
+@AddMethod()
+class Foo {
+  a = 1;
+}
+
+function AddMethod(): ClassDecorator {
+  return (target: any) => {
+    target.prototype.newInstanceMethod = () => {
+      console.log("Let's add a new instance method!");
+    };
+    target.newStaticMethod = () => {
+      console.log("Let's add a new static method!");
+    };
+  };
+}
+
+function AddProperty(value: string): ClassDecorator {
+  return (target: any) => {
+    target.prototype.newInstanceProperty = value;
+    target.newStaticProperty = `static ${value}`;
+  };
+}
+```
+我们的函数返回了一个 ClassDecorator ，因此这个装饰器就是一个 Decorator Factory，在实际执行时需要以 @Deco() 的形式调用。
+
+在 AddMethod 与 AddProperty 方法中，我们分别在 `target`、`target.prototype` 上添加了方法与属性，还记得 ES6 中 Class 的本质仍然是基于原型的吗？在这里 target 上的属性实际上是**静态成员**，也就是其实例上不会获得的方法，而 `target.prototype` 上的属性才是会随着继承与实例化过程被传递的**实例成员**。
+
+调用结果：
+```typescript
+const foo: any = new Foo();
+
+foo.newInstanceMethod();//Let's add a new instance method!
+(<any>Foo).newStaticMethod();//Let's add a new static method!
+
+console.log(foo.newInstanceProperty);//ldy
+console.log((<any>Foo).newStaticProperty);//static ldy
+```
+
+我们在这里调用的方法并没有直接在 Foo 中定义，而是通过装饰器来强行添加！我们也可以在装饰中返回一个子类
+```typescript
+const OverrideBar = (target: any) => {
+  return class extends target {
+    print() {}
+    overridedPrint() {
+      console.log('This is Overrided Bar!');
+    }
+  };
+};
+
+@OverrideBar
+class Bar {
+  print() {
+    console.log('This is Bar!');
+  }
+}
+
+// 被覆盖了，现在是一个空方法
+new Bar().print();
+
+// This is Overrided Bar!
+(<any>new Bar()).overridedPrint();
+```
+#### 方法装饰器
+#### 访问符装饰器
+#### 属性装饰器
+#### 参数装饰器
