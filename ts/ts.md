@@ -3118,6 +3118,257 @@ new Bar().print();
 (<any>new Bar()).overridedPrint();
 ```
 #### 方法装饰器
+方法装饰器的入参包括**类的原型**、**方法名**以及**方法的属性描述符**（PropertyDescriptor），而通过属性描述符你可以控制这个方法的内部实现（即 value）、可变性（即 writable）等信息。
+
+能拿到原本实现，也就意味着，我们可以在执行原本方法的同时，插入一段新的逻辑，比如计算这个方法的执行耗时：
+```typescript
+class Foo {
+  @ComputeProfiler()
+  async fetch() {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve('RES');
+      }, 3000);
+    });
+  }
+}
+
+function ComputeProfiler(): MethodDecorator {
+  return (
+    _target,
+    methodIdentifier,
+    descriptor: TypedPropertyDescriptor<any>
+  ) => {
+    const originalMethodImpl = descriptor.value!;
+    descriptor.value = async function (...args: unknown[]) {
+      const start = new Date();
+      const res = await originalMethodImpl.apply(this, args); // 执行原本的逻辑
+      const end = new Date();
+      console.log(
+        `${String(methodIdentifier)} Time: `,
+        end.getTime() - start.getTime()
+      );
+      return res;
+    };
+  };
+}
+
+(async () => {
+  console.log(await new Foo().fetch());
+})();
+```
+需要注意的是，方法装饰器的 target 是类的原型而非类本身。
 #### 访问符装饰器
+访问符装饰器并不常见，甚至访问符对于部分同学来说也是陌生的，但它其实就是 `get value(){}` 与 `set value(v)=>{}` 这样的方法，其中 getter 在你访问这个属性 `value` 时触发，而 setter 在你对 `value` 进行赋值时触发。访问符装饰器本质上仍然是方法装饰器，它们使用的类型定义也相同。
+
+需要注意的是，访问符装饰器只能同时应用在一对 getter / setter 的其中一个，即要么装饰 getter 要么装饰 setter 。这是因为，不论你是装饰哪一个，装饰器入参中的属性描述符都会包括 getter 与setter 方法：
+```typescript
+class Foo {
+  _value!: string;
+
+  get value() {
+    return this._value;
+  }
+
+  @HijackSetter('LIN_BU_DU')
+  set value(input: string) {
+    this._value = input;
+  }
+}
+
+function HijackSetter(val: string): MethodDecorator {
+  return (target, methodIdentifier, descriptor: any) => {
+    const originalSetter = descriptor.set;
+    descriptor.set = function (newValue: string) {
+      const composed = `Raw: ${newValue}, Actual: ${val}-${newValue}`
+      originalSetter.call(this, composed);
+      console.log(`HijackSetter: ${composed}`);
+    };
+    // 篡改 getter，使得这个值无视 setter 的更新，返回一个固定的值
+    // descriptor.get = function () {
+    //   return val;
+    // };
+  };
+}
+
+const foo = new Foo();
+foo.value = 'LINBUDU'; // HijackSetter: Raw: LINBUDU, Actual: LIN_BU_DU-LINBUDU
+```
+在这个例子中，我们通过装饰器劫持了 setter ，在执行原本的 setter 方法修改了其参数。同时，我们也可以在这里去劫持 getter（`descriptor.get`），这样一来在读取这个值时，会直接返回一个我们固定好的值，而非其实际的值（如被 setter 更新过的）。
 #### 属性装饰器
+属性装饰器在独立使用时能力非常有限，它的入参只有**类的原型**与**属性名称**，返回值会被忽略，但你仍然可以通过**直接在类的原型上赋值**来修改属性：
+```typescript
+class Foo {
+  @ModifyNickName()
+  nickName!: string;
+  constructor() {}
+}
+
+function ModifyNickName(): PropertyDecorator {
+  return (target: any, propertyIdentifier) => {
+    target[propertyIdentifier] = 'ldy';
+    target['otherName'] = 'ldy1';
+  };
+}
+
+console.log(new Foo().nickName);//ldy
+// @ts-expect-error
+console.log(new Foo().otherName);//ldy1
+```
+我们在原型对象上强行写入了属性，但这种方法实际上过于 hack，在后面我们会了解如何通过委托的方式来为一个属性注入值。
 #### 参数装饰器
+参数装饰器包括了构造函数的参数装饰器与方法的参数装饰器，它的入参包括**类的原型、参数所在的方法名**与**参数在函数参数中的索引值（即第几个参数）**，如果只是单独使用，它的作用同样非常有限。
+```typescript
+class Foo {
+  handler(@CheckParam() input: string) {
+    console.log(input);
+  }
+}
+
+function CheckParam(): ParameterDecorator {
+  return (target, methodIdentifier, index) => {
+    console.log(target, methodIdentifier, index);
+  };
+}
+
+// {} handler 0
+new Foo().handler('linbudu');
+```
+思考另一个问题：一个类中可以同时拥有这几种装饰器，那么这些**不同装饰器的执行时机与顺序是如何的？**
+
+### 装饰器的执行机制
+装饰器的执行机制中主要包括**执行时机、执行原理以及执行顺序**这三个概念。
+
+不同类型装饰器的**执行顺序**。首先是实例上的属性、方法、方法参数，然后是静态的属性、方法、方法参数，最后是类以及类构造函数参数。而装饰器的应用顺序则略有不同，**方法参数装饰器会先于方法装饰器应用**
+
+关于执行顺序与应用顺序，执行是**装饰器求值得到最终装饰器表达式**的过程，而应用则是**最终装饰器逻辑代码执行**的过程  
+  
+  
+在 TypeScript 官方文档中对应用顺序给出了详细的定义：
+1. *参数装饰器，然后依次是方法装饰器，访问符装饰器，或属性装饰器应用到每个实例成员。*
+2. *参数装饰器，然后依次是方法装饰器，访问符装饰器，或属性装饰器应用到每个静态成员。*
+3. *参数装饰器应用到构造函数。*
+4. *类装饰器应用到类。*
+
+最后，我们再看一个例子，来更深刻地了解执行顺序与应用顺序：
+```typescript
+function Deco(identifier: string): any {
+  console.log(`${identifier} 执行`);
+  return function () {
+    console.log(`${identifier} 应用`);
+  };
+}
+
+@Deco('类装饰器')
+class Foo {
+  constructor(@Deco('构造函数参数装饰器') name: string) {}
+
+  @Deco('实例属性装饰器')
+  prop?: number;
+
+  @Deco('实例方法装饰器')
+  handler(@Deco('实例方法参数装饰器') args: any) {}
+}
+```
+以上代码的输出是这样的：
+```typescript
+实例属性装饰器 执行
+实例属性装饰器 应用
+实例方法装饰器 执行
+实例方法参数装饰器 执行
+实例方法参数装饰器 应用
+实例方法装饰器 应用
+类装饰器 执行
+构造函数参数装饰器 执行
+构造函数参数装饰器 应用
+类装饰器 应用
+```
+
+#### 多个同类装饰器的执行顺序
+另外，我们也可以使用多个同种装饰器，比如一个类上可以有好多个类装饰器：
+```typescript
+@Deprecated()
+@User()
+@Internal
+@Provide()
+class Foo {}
+```
+其顺序分为两步。首先，**由上至下**依次对装饰器的表达式求值，得到装饰器的实现，`@Internal` 中实现即为 Internal 方法，而 `@Provide()` 中实现则需要进行一次求值。
+
+然后，这些装饰器的具体实现才会`从下往上`调用，如这里是 Provide、Internal、User、Deprecated 的顺序。从这个角度来看，甚至有点像洋葱模型：
+```typescript
+function Foo(): MethodDecorator {
+  console.log('foo in');
+  return (target, propertyKey, descriptor) => {
+    console.log('foo out');
+  };
+}
+
+function Bar(): MethodDecorator {
+  console.log('bar in');
+  return (target, propertyKey, descriptor) => {
+    console.log('bar out');
+  };
+}
+
+const Baz: MethodDecorator = () => {
+  console.log('baz apply');
+};
+
+class User {
+  @Foo()
+  @Bar()
+  @Baz
+  method() {}
+}
+
+// foo in
+// bar in
+// baz apply
+// bar out
+// foo out
+```
+类似的，如果一个方法中的多个参数均存在装饰器，那么同样是 `Parma1 in` - `Param2 in` - `Param2 out` - `Param1 out` 的顺序，也就是**后面参数的装饰器逻辑**反而先执行。
+
+但我们通常不会在同种装饰器中进行存在依赖关系的操作。
+
+### 反射Reflect
+
+Reflect 方法主要有这么些功能：
++ 整理语言层面的顶级方法，让它们待在更合理的命名空间下。
++ 修正部分方法的表现。
++ 配合 Proxy，提供一份不会被覆盖的方法实现。
+```typescript
+const target = {};
+
+const proxiedTarget = new Proxy(target, {
+  set: function (target, name, value, receiver) {
+    proxiedTarget.name = value;
+    console.log('property ' + name + ' set to ' + value);
+  },
+});
+
+proxiedTarget.name = 'foo';
+```
+因为此时 proxiedTarget 的 set 方法已经被代理了，在 set 方法内去赋值又会再进入 set 方法,所以这里会得到一个栈溢出的错误`Maximum call stack size exceeded`
+
+我们需要使用 `Reflect.set` 方法来实现赋值逻辑
+```typescript
+const target = {};
+
+const proxiedTarget = new Proxy(target, {
+  set: function (target, name, value, receiver) {
+    const success = Reflect.set(target, name, value, receiver);
+    if (success) {
+      console.log('property ' + name + ' set to ' + value);
+    }
+    return success;
+  },
+});
+
+proxiedTarget.name = 'foo';
+```
+在上面例子里， `Reflect.set` 方法是运行时才实际执行的，也就是说我们通过反射，在**运行时去修改了程序的行为**。这就是反射的核心要素：**在程序运行时去检查、修改程序行为**，比如除了赋值以外，我们还可以在运行时通过 `Reflect.construct` 实例化一个类，通过 `Reflect.setPrototypeOf` 修改对象原型指向等等。
+
+
+#### 反射元数据Reflect Metadata
