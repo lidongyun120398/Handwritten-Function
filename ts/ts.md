@@ -3372,3 +3372,272 @@ proxiedTarget.name = 'foo';
 
 
 #### 反射元数据Reflect Metadata
+你可以将元数据理解为，**用于描述程序自身特性的数据**，比如，某个方法的参数信息、返回值信息可以称为该方法的元数据，某个类的实例化参数、内部的方法可以称之为这个类的元数据。
+
+目前，想要使用反射元数据，你还需要安装 [reflect-metadata](https://github.com/rbuckton/reflect-metadata) ，并在入口文件中的顶部 `import "reflect-metadata"` 。
+
+。先来简单使用下元数据的注册与提取：
+```typescript
+import 'reflect-metadata';
+
+class Foo {
+  handler() {}
+}
+
+Reflect.defineMetadata('class:key', 'class metadata', Foo);
+Reflect.defineMetadata('method:key', 'handler metadata', Foo, 'handler');
+Reflect.defineMetadata(
+  'proto:method:key',
+  'proto handler metadata',
+  Foo.prototype,
+  'handler'
+);
+```
+defineMetadata 的入参包括元数据 Key、元数据 Value、目标类 Target 以及一个可选的属性，上面的三处调用分别代表了：
++ 在 Foo 这个类上，注册一个 key 为 class:key，值为 class metadata 的元数据
++ 在 Foo 这个类的方法 handler 上，注册一个 key 为 method:key，值为 handler metadata 的元数据
++ 在 Foo 这个类的原型的方法 handler 上，注册一个 key 为 proto:method:key，值为 proto handler metadata 的元数据  
+
+而提取则可以通过 getMetadata 方法：
+```typescript
+// class metadata
+console.log(Reflect.getMetadata('class:key', Foo));
+// handler metadata
+console.log(Reflect.getMetadata('method:key', Foo, 'handler'));
+// proto handler metadata
+console.log(Reflect.getMetadata('proto:method:key', Foo.prototype, 'handler'));
+```
+实际上，反射元数据正是我们实现属性装饰器中提到的“委托”能力的基础。现在我们可以使用元数据进一步完善它了：
+```typescript
+import 'reflect-metadata';
+
+class Foo {
+
+  @ModifyNickName()
+  nickName!: string;
+  constructor() {}
+}
+
+function ModifyNickName(): PropertyDecorator {
+  return (target: any, propertyIdentifier) => {
+    Reflect.defineMetadata('prop', propertyIdentifier, target)
+  };
+}
+
+const foo = new Foo();
+
+const propToInject = Reflect.getMetadata('prop', foo);
+
+const propProvider = {
+  nickName: 'ldy',
+  otherName: 'ldy1'
+}
+
+foo[propToInject] = propProvider[propToInject];
+
+console.log(foo); // { nickName: 'ldy' }
+```
+来解释一下上面的代码：
++ 在属性装饰器中 `ModifyNickName` ，为这个类注册一个元数据，名为 prop，值为 nickName 属性名。也就是告知后续调用方，这个类型上的 nickName 属性名需要被修改。
++ 在实例化这个类后，拿到实例上的元数据，获得 nickName 这个属性名。
++ 从 propProvider 中，将 nickName 这个属性名对应的值取出，赋值给实例 foo 上的同名属性。  
+
+相比于开始的简单粗暴的注入方式，使用元数据实现的委托要更加标准与灵活。我们只需要实现一个 propProvider 这样的集中式注入中心，再按照需要注入元数据，就能够完成各种基于元数据的修改行为了。
+
+而实际上，某些时候我们使用装饰器就仅仅只是为了注入元数据而已。考虑到这一点，反射元数据中直接就内置了基于装饰器的调用方式：
+```typescript
+@Reflect.metadata('class:key', 'METADATA_IN_CLASS')
+class Foo {
+  @Reflect.metadata('prop:key', 'METADATA_IN_PROPERTY')
+  public prop: string = 'linbudu';
+
+  @Reflect.metadata('method:key', 'METADATA_IN_METHOD')
+  public handler(): void {}
+}
+```
+`@Reflect.metadata` 装饰器会基于应用的位置进行实际的逻辑调用，如在类上装饰时以类作为 target 进行注册，而在静态成员与实例成员中分别使用构造函数、构造函数原型。
+```typescript
+const foo = new Foo();
+
+// METADATA_IN_CLASS
+console.log(Reflect.getMetadata('class:key', Foo));
+// undefined
+console.log(Reflect.getMetadata('class:key', Foo.prototype));
+
+// METADATA_IN_METHOD
+console.log(Reflect.getMetadata('method:key', Foo.prototype, 'handler'));
+// METADATA_IN_METHOD
+console.log(Reflect.getMetadata('method:key', foo, 'handler'));
+
+// METADATA_IN_PROPERTY
+console.log(Reflect.getMetadata('prop:key', Foo.prototype, 'prop'));
+// METADATA_IN_PROPERTY
+console.log(Reflect.getMetadata('prop:key', foo, 'prop'));
+```
+
+看起来我们现在拥有了实现委托的基本能力，但实际上这还不够。所有的元数据都需要我们提前定义好，如果我们希望直接用一些已有的信息作为元数据呢？比如下面这个例子：
+```typescript
+class UserService {
+  @InjectModel()
+  userModel: UserModel;
+}
+```
+我希望将 userModel 属性的类型 UserModel 作为一个元数据信息注入，同时我不会为 `@InjectModel()` 装饰器提供任何信息
+
+还记得我们在介绍反射概念时说的，**反射允许程序去检视自身**，而属性类型作为程序的一部分，也应当是能被反射收集的。为了实现这一目的，TypeScript 内的反射元数据中还内置了基于类型的元数据信息，你可以通过 `design:type`、`design:paramtypes` 以及 `design:returntype` 这三个内置的元数据 Key，获取到类与类成员的类型、参数类型、返回值类型：
+```typescript
+import 'reflect-metadata';
+
+function Inject() {
+  return () => { }
+}
+
+@Inject()
+class Foo {
+
+  @Inject()
+  name: string;
+
+  @Inject()
+  add(source: number, input: number): number {
+    return source + input;
+  }
+}
+
+const foo = new Foo();
+
+console.log(Reflect.getMetadata('design:type', foo, 'name')); // [Function String]
+console.log(Reflect.getMetadata('design:type', foo, 'add')); // [Function Function]
+console.log(Reflect.getMetadata('design:paramtypes', foo, 'add')); // [[Function Number], [Function Number]]
+console.log(Reflect.getMetadata('design:returntype', foo, 'add')); // [Function Number]
+```
+需要注意的是，这些类型信息是来自于运行时，而非我们的类型标注。同时这些内置元数据取出的值是装箱类型对象，如 String、Number 等。
+
+在这个例子里，我们会实现两种校验逻辑，对必填属性（Required）与属性类型的校验（String / Number / Boolean），其基本使用方式如下：
+```typescript
+class User {
+  @Required()
+  name!: string;
+
+  @ValueType(TypeValidation.Number)
+  age!: number;
+}
+
+const user = new User();
+// @ts-expect-error
+user.age = '18';
+```
+我们会将 user 实例传递给校验方法，在这里应当给出两处错误：
++ 没有提供必填属性 name
++ age 属性的类型不符
+
+首先是 Required ，我们肯定下意识是这么写：
+```typescript
+function Required(): PropertyDecorator {
+  return (target, prop) => {
+    Reflect.defineMetadata("required", true, target, prop);
+  };
+}
+```
+也就是在这个属性上定义了一个名为 required 的元数据。但你是否想过，如果实例中根本就没有这个属性呢？就像上面的 user 一样，那这里的元数据不就丢失了？
+
+要解决这一问题，其实只需要将元数据定义在类上即可。我们用一个专门描述必填属性的元数据，存储这个类内部所有的必填属性即可：
+```typescript
+const requiredMetadataKey = Symbol('requiredKeys');
+
+function Required(): PropertyDecorator {
+  return (target, prop) => {
+    //获取到所有的requiredMetadataKey放入到数组中，在下一步与当前的prop(新的requiredMetadataKey合并，放入到requiredMetadataKey值中)
+    const existRequiredKeys: string[] =
+      Reflect.getMetadata(requiredMetadataKey, target) ?? [];
+
+    Reflect.defineMetadata(
+      requiredMetadataKey,
+      [...existRequiredKeys, prop],
+      target
+    );
+  };
+}
+```
+
+而对于属性的校验其实就简单了，由于对类型的校验逻辑可以归到一起，我们就使用**装饰器工厂 + 入参**的形式来注入对应的元数据信息，这次我们只需要在属性层面注入元数据即可：
+```typescript
+enum TypeValidation {
+  String = 'string',
+  Number = 'number',
+  Boolean = 'boolean',
+}
+
+const validationMetadataKey = Symbol('expectedType');
+
+function ValueType(type: TypeValidation): PropertyDecorator {
+  return (target, prop) => {
+    Reflect.defineMetadata(validationMetadataKey, type, target, prop);
+  };
+}
+```
+然后就是校验逻辑了，我们需要一个额外的 validator 方法：
+```typescript
+function validator(entity: any) {}
+
+console.log(validator(user));
+```
+如果校验完全通过，那这一方法的返回值则是一个空数组，否则的话内部会存有报错信息。首先是对于必填属性的校验，我们需要取出注册在类上的，描述必填属性的元数据，再检查这些必填属性是否都存在了：
+```typescript
+function validator(entity: any) {
+  const clsName = entity.constructor.name;
+  const messages: string[] = [];
+  // 先检查所有必填属性
+  const requiredKeys: string[] = Reflect.getMetadata(
+    requiredMetadataKey,
+    entity
+  );
+
+  // 基于反射拿到所有存在的属性
+  const existKeys = Reflect.ownKeys(entity);
+
+  for (const key of requiredKeys) {
+    if (!existKeys.includes(key)) {
+      messages.push(`${clsName}.${key} should be required.`);
+      // throw new Error(`${key} is required!`);
+    }
+  }
+
+  return messages;
+}
+```
+然后是对属性类型的校验，我们的 TypeValidation 枚举中，枚举值就是 `typeof` 的返回值，因此这里直接使用即可：
+```typescript
+function validator(entity: any) {
+  // ...
+  // 接着基于定义在属性上的元数据校验属性类型
+  for (const key of existKeys) {
+    const expectedType: string = Reflect.getMetadata(
+      validationMetadataKey,
+      entity,
+      key
+    );
+
+    if (!expectedType) continue;
+
+    // 枚举也是对象，因此 Object.values 同样可以生效（只不过也会包括键名）
+    // @ts-expect-error
+    if (Object.values(TypeValidation).includes(expectedType)) {
+      const actualType = typeof entity[key];
+      if (actualType !== expectedType) {
+        messages.push(
+          `expect ${entity.constructor.name}.${String(
+            key
+          )} to be ${expectedType}, but got ${actualType}.`
+        );
+        // throw new Error(`${String(key)} is not ${expectedType}!`);
+      }
+    }
+  }
+  return messages;
+}
+```
+最终的输出会是这样的：
+```typescript
+[  'User.name should be required.',  'expect User.age to be number, but got string.']
+```
